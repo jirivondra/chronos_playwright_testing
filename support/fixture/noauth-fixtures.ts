@@ -2,7 +2,7 @@ import { test as base } from '@playwright/test'
 import { DashboardPage } from '../page-objects/dashboard_page'
 import { NewTaskPage } from '../page-objects/new_task_page'
 
-export type NoAuthFixtures = {
+export interface NoAuthFixtures {
   unAuthDashboardPage: DashboardPage
   unAuthNewTaskPage: NewTaskPage
 }

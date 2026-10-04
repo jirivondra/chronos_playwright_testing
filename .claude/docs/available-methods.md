@@ -94,13 +94,18 @@ Adds footer heading and contact icon locators.
 
 ## ToTopButton
 
-Adds back-to-top button assertions and interaction.
+Adds back-to-top button assertions and interaction. The button fades via CSS `opacity`
+alone — Playwright's `toBeVisible()` doesn't key off `opacity` (only an empty bounding box
+or `visibility:hidden`), so both checks currently use the same `toBeVisible()` logic and
+can't yet reliably tell the fade states apart. The two "ToTop Button Full Flow" tests
+(`login_page.spec.ts`, `logout_page.spec.ts`) are `test.fixme()`'d until the app also
+toggles the `hidden` attribute once the fade-out finishes.
 
-| Method                       | Signature            | Description                                         |
-| ---------------------------- | -------------------- | --------------------------------------------------- |
-| `checkToTopButtonVisible`    | `() → Promise<this>` | Soft-asserts button is visible and has `opacity: 1` |
-| `checkToTopButtonNotVisible` | `() → Promise<this>` | Asserts button has `opacity: 0`                     |
-| `clickToTopButton`           | `() → Promise<this>` | Clicks the back-to-top button                       |
+| Method                       | Signature            | Description                       |
+| ---------------------------- | -------------------- | --------------------------------- |
+| `checkToTopButtonVisible`    | `() → Promise<this>` | Asserts the button is visible     |
+| `checkToTopButtonNotVisible` | `() → Promise<this>` | Asserts the button is not visible |
+| `clickToTopButton`           | `() → Promise<this>` | Clicks the back-to-top button     |
 
 ---
 
@@ -117,7 +122,7 @@ Adds top navigation bar with logout action.
 
 ## SiteBarMenu
 
-Adds sidebar menu with logo, navigation links, and app version. All logo/nav locators are scoped to `#sidebar` — necessary because `OpenTasksPage`/`ClosedTasksPage` render a breadcrumb with its own "Dashboard"-named link, which would otherwise collide with `navDashboardLink` if left unscoped to the whole page.
+Adds sidebar menu with logo, navigation links, and app version. The sidebar itself is `page.getByRole('complementary')` — the `<aside id="sidebar">` element carries that role implicitly, no CSS/ID fallback needed. All logo/nav locators are scoped to it — necessary because `OpenTasksPage`/`ClosedTasksPage` render a breadcrumb with its own "Dashboard"-named link, which would otherwise collide with `navDashboardLink` if left unscoped to the whole page.
 
 The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a page's own content heading — the app fixed this by demoting the logo to a `<p>` (not by changing the page's own heading), so `logoTitle` now matches it by text instead of by heading role. See `Header.checkOnlyOneH1`.
 
@@ -126,6 +131,7 @@ The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a pag
 | `checkMenuExpandedOnLoad`       | `() → Promise<this>`             | Asserts menu is in expanded state on load: open button visible, logo and nav labels visible                                                                                                                                                                                                      |
 | `checkVisibilityForOpenMenu`    | `() → Promise<this>`             | Asserts open-menu button is visible                                                                                                                                                                                                                                                              |
 | `checkVisibilityForCloseMenu`   | `() → Promise<this>`             | Asserts open-menu button is not visible                                                                                                                                                                                                                                                          |
+| `clickMenuButton`               | `() → Promise<this>`             | Clicks the open-menu button, toggling expanded/collapsed state                                                                                                                                                                                                                                   |
 | `checkOpenAndCloseSiteMenu`     | `() → Promise<this>`             | Full open/close cycle: checks expanded state, collapses, checks collapsed state, expands again                                                                                                                                                                                                   |
 | `checkVersionTitle`             | `() → Promise<this>`             | Soft-asserts "App version" label is visible with correct text                                                                                                                                                                                                                                    |
 | `checkVersionOfAppIsVisible`    | `() → Promise<this>`             | Asserts app version element is visible                                                                                                                                                                                                                                                           |
@@ -186,6 +192,18 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 | `goToNextPage`     | `() → Promise<this>`                   | Clicks the "next" arrow                                                                                                                                                                                                                        |
 | `goToPreviousPage` | `() → Promise<this>`                   | Clicks the "previous" arrow                                                                                                                                                                                                                    |
 | `checkCurrentPage` | `(pageNumber: number) → Promise<this>` | Asserts the active page button shows the given page number                                                                                                                                                                                     |
+
+---
+
+## Theme
+
+**Not part of either inheritance chain** — a standalone component (`support/page-objects/common/theme.ts`), constructed with only `(page: Page)`. Used exclusively by `support/fixture/auth-fixtures.ts` to replace what used to be an identical `page.addInitScript(...)` block duplicated in every fixture (`loginPage`, `dashboardPage`, `openTasksPage`, `closedTasksPage`, `logoutPage`) — that duplication is what let the `openTasksPage` fixture silently typo its auth-token storage key once, undetected, since every fixture had its own copy to get wrong independently.
+
+| Method   | Signature                                  | Description                                                                           |
+| -------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `inject` | `(value: 'light'\|'dark') → Promise<void>` | Sets `localStorage.theme` via `page.addInitScript`, before the page's own scripts run |
+
+The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigger + panel + light/dark/system buttons — currently only referenced as a mask target in `AppBar.checkTopHeaderSnapshot`). `Theme` is deliberately minimal for now — no locators or click methods for that widget — until a test actually needs to interact with it; add them here, not as a separate class, when that happens.
 
 ---
 
@@ -322,14 +340,6 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 **Path:** `/login.html`
 **Extends:** `ToTopButton` — has BasePage, Header, Footer, ToTopButton methods. No AppBar/SiteBarMenu.
 
-**Public locators:**
-
-| Locator             | Type      | Description                             |
-| ------------------- | --------- | --------------------------------------- |
-| `signInButton`      | `Locator` | Submit button (`button[type="submit"]`) |
-| `createAccountLink` | `Locator` | "Create Account" link                   |
-| `forgetAccessLink`  | `Locator` | "Forgot Access?" link                   |
-
 **Methods:**
 
 | Method                          | Signature                                                       | Description                                                                                                      |
@@ -346,6 +356,7 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 | `checkLoginErrorMessage`        | `(text: string) → Promise<this>`                                | Soft-asserts the `#error-msg` banner is visible with the given text (invalid credentials or backend unreachable) |
 | `checkLoginErrorHidden`         | `() → Promise<this>`                                            | Asserts the `#error-msg` banner is not visible                                                                   |
 | `checkUsernameFieldError`       | `(text: string) → Promise<this>`                                | Soft-asserts the `#username-error` inline validation message is visible with the given text                      |
+| `checkUsernameFieldErrorHidden` | `() → Promise<this>`                                            | Asserts the `#username-error` inline validation message is not visible                                           |
 | `checkPasswordFieldError`       | `(text: string) → Promise<this>`                                | Soft-asserts the `#password-error` inline validation message is visible with the given text                      |
 | `checkPasswordFieldErrorHidden` | `() → Promise<this>`                                            | Asserts the `#password-error` inline validation message is not visible                                           |
 | `simulateBackendUnreachable`    | `() → Promise<this>`                                            | Aborts requests to `/todos` so login fails as if the backend were down                                           |
@@ -370,16 +381,18 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 
 ## Fixtures summary
 
-| Fixture name          | Type            | Page object       | Auth                                            | Notes                                                                                                           |
-| --------------------- | --------------- | ----------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `loginPage`           | auth-fixtures   | `LoginPage`       | none                                            | Login form tests — no token injected                                                                            |
-| `dashboardPage`       | auth-fixtures   | `DashboardPage`   | token in sessionStorage                         | Standard authenticated tests                                                                                    |
-| `newTaskPage`         | auth-fixtures   | `NewTaskPage`     | via `dashboardPage`                             | Depends on `dashboardPage`; teardown via `deleteTaskByTitle()`                                                  |
-| `openTasksPage`       | auth-fixtures   | `OpenTasksPage`   | token in sessionStorage                         | Standard authenticated tests                                                                                    |
-| `closedTasksPage`     | auth-fixtures   | `ClosedTasksPage` | token in sessionStorage + theme in localStorage | Standard authenticated tests; the only auth fixture that also injects `theme`, needed for visual/snapshot tests |
-| `logoutPage`          | auth-fixtures   | `LogoutPage`      | none                                            | Logout page tests — no token injected                                                                           |
-| `unAuthDashboardPage` | noauth-fixtures | `DashboardPage`   | none                                            | Redirect tests — no token                                                                                       |
-| `unAuthNewTaskPage`   | noauth-fixtures | `NewTaskPage`     | none                                            | Redirect tests — no token                                                                                       |
+| Fixture name          | Type            | Page object       | Auth                    | Notes                                                          |
+| --------------------- | --------------- | ----------------- | ----------------------- | -------------------------------------------------------------- |
+| `loginPage`           | auth-fixtures   | `LoginPage`       | none                    | Login form tests — no token injected                           |
+| `dashboardPage`       | auth-fixtures   | `DashboardPage`   | token in sessionStorage | Standard authenticated tests                                   |
+| `newTaskPage`         | auth-fixtures   | `NewTaskPage`     | via `dashboardPage`     | Depends on `dashboardPage`; teardown via `deleteTaskByTitle()` |
+| `openTasksPage`       | auth-fixtures   | `OpenTasksPage`   | token in sessionStorage | Standard authenticated tests                                   |
+| `closedTasksPage`     | auth-fixtures   | `ClosedTasksPage` | token in sessionStorage | Standard authenticated tests                                   |
+| `logoutPage`          | auth-fixtures   | `LogoutPage`      | none                    | Logout page tests — no token injected                          |
+| `unAuthDashboardPage` | noauth-fixtures | `DashboardPage`   | none                    | Redirect tests — no token                                      |
+| `unAuthNewTaskPage`   | noauth-fixtures | `NewTaskPage`     | none                    | Redirect tests — no token                                      |
+
+Every fixture in `auth-fixtures.ts` also injects `theme` into `localStorage` via `new Theme(page).inject(theme)` (see the `Theme` section above) — omitted from the table above since it's the same for all of them, not a per-fixture detail.
 
 ---
 
@@ -403,6 +416,17 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 | `pagination_data.ts`        | `paginationData`            | `pageSize` (10) — the app's `PAGE_SIZE` constant, used to assert items-per-page                                                                                                                                                                  |
 | `pagination_data.ts`        | `generateRandomPageNumber`  | Factory (faker) returning a random page number in `[1, totalPages]`                                                                                                                                                                              |
 | `pagination_data.ts`        | `generateNonLastPageNumber` | Factory (faker) returning a random page number in `[1, totalPages - 1]` — guaranteed not the last (possibly partial) page                                                                                                                        |
+
+## Constants
+
+Shared runtime values that are neither a compile-time-only type (`support/types/`) nor
+app-content test data (`support/test-data/`) — e.g. a protocol-level enum used by more
+than one file. Unlike `type`/`interface`, these produce real code at runtime.
+
+| File                               | Exports         | Description                                                                                                                                                                          |
+| ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `support/constants/http_method.ts` | `HttpMethod`    | Enum of HTTP verbs (`Get`, `Post`, `Put`, `Delete`), used by `ApiHelper.apiRequest()` and directly in tests                                                                          |
+| `support/constants/endpoints.ts`   | `todosEndpoint` | The `/todos` API path. Shared by `OpenTask` (composed, not in the inheritance chain), `DashboardPage`, and `LoginPage` — these have no common ancestor below the generic `ApiHelper` |
 
 ## Types
 

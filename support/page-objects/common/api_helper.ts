@@ -1,9 +1,4 @@
-export enum HttpMethod {
-  Get = 'GET',
-  Post = 'POST',
-  Put = 'PUT',
-  Delete = 'DELETE',
-}
+import { HttpMethod } from '../../constants/http_method'
 
 export class ApiHelper {
   protected path: string

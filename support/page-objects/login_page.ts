@@ -1,21 +1,22 @@
 import { Page, Locator, expect } from '@playwright/test'
 import { ToTopButton } from './common/to_top_button'
 import { DashboardPage } from './dashboard_page'
+import { todosEndpoint } from '../constants/endpoints'
 
 export class LoginPage extends ToTopButton {
-  readonly signInButton: Locator
-  readonly createAccountLink: Locator
-  readonly forgetAccessLink: Locator
+  private readonly signInButton: Locator
+  private readonly createAccountLink: Locator
+  private readonly forgetAccessLink: Locator
   private readonly userName: Locator
   private readonly passwordInput: Locator
   private readonly passwordToggle: Locator
   private readonly loginError: Locator
   private readonly usernameFieldError: Locator
   private readonly passwordFieldError: Locator
-  private readonly todosEndpoint: string
   private readonly passwordHiddenType: string
   private readonly passwordVisibleType: string
   private readonly dashboardUrlPattern: string
+  private readonly connectionRefusedErrorCode: string
 
   constructor(page: Page) {
     super(page, '/login.html')
@@ -29,9 +30,9 @@ export class LoginPage extends ToTopButton {
     this.loginError = this.page.locator('#error-msg')
     this.usernameFieldError = this.page.locator('#username-error')
     this.passwordFieldError = this.page.locator('#password-error')
-    this.todosEndpoint = '/todos'
     this.passwordHiddenType = 'password'
     this.passwordVisibleType = 'text'
+    this.connectionRefusedErrorCode = 'connectionrefused'
   }
 
   async fillUserName(userName: string): Promise<this> {
@@ -96,6 +97,11 @@ export class LoginPage extends ToTopButton {
     return this
   }
 
+  async checkUsernameFieldErrorHidden(): Promise<this> {
+    await expect(this.usernameFieldError).not.toBeVisible()
+    return this
+  }
+
   async checkPasswordFieldError(text: string): Promise<this> {
     await expect.soft(this.passwordFieldError).toBeVisible()
     await expect.soft(this.passwordFieldError).toHaveText(text)
@@ -108,7 +114,9 @@ export class LoginPage extends ToTopButton {
   }
 
   async simulateBackendUnreachable(): Promise<this> {
-    await this.page.route(`**${this.todosEndpoint}`, (route) => route.abort('connectionrefused'))
+    await this.page.route(`**${todosEndpoint}`, (route) =>
+      route.abort(this.connectionRefusedErrorCode)
+    )
     return this
   }
 

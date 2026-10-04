@@ -1,6 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test'
 import { SiteBarMenu } from './common/site_bar_menu'
-import { HttpMethod } from './common/api_helper'
+import { HttpMethod } from '../constants/http_method'
 import type { DashboardPage } from './dashboard_page'
 import dayjs from 'dayjs'
 

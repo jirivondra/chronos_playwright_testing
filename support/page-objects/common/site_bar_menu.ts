@@ -2,28 +2,28 @@ import { Page, Locator, expect } from '@playwright/test'
 import { AppBar } from './app_bar'
 
 export class SiteBarMenu extends AppBar {
+  protected appVersionTitleText: string
+  private readonly logoTitleText: string
+  private readonly logoSubtitleText: string
+  private readonly navDashboardText: string
+  private readonly navOpenTasksText: string
+  private readonly navClosedTasksText: string
+  private readonly navCalendarText: string
+
   protected openMenuButton: Locator
   protected appVersionTitle: Locator
   protected appVersion: Locator
-  protected appVersionTitleText: string
 
   private readonly sidebar: Locator
   private readonly appVersionValue: Locator
   private readonly logoImage: Locator
   private readonly logoTitle: Locator
   private readonly logoSubtitle: Locator
-  private readonly logoTitleText: string
-  private readonly logoSubtitleText: string
 
   private readonly navDashboardLink: Locator
   private readonly navOpenTasksLink: Locator
   private readonly navClosedTasksLink: Locator
   private readonly navCalendarLink: Locator
-
-  private readonly navDashboardText: string
-  private readonly navOpenTasksText: string
-  private readonly navClosedTasksText: string
-  private readonly navCalendarText: string
 
   private readonly navDashboardLabel: Locator
   private readonly navOpenTasksLabel: Locator
@@ -37,28 +37,29 @@ export class SiteBarMenu extends AppBar {
 
   constructor(page: Page, path: string) {
     super(page, path)
-    this.openMenuButton = page.getByRole('button', { name: 'menu_open' })
+
     this.appVersionTitleText = 'App version'
-    this.appVersionTitle = page.getByText(this.appVersionTitleText, { exact: true })
-    this.appVersion = page.getByText(this.appVersionTitleText)
-
-    this.sidebar = page.locator('#sidebar')
-    // The actual version number (e.g. "v1.0.0"), fetched from assets/version.json — distinct
-    // from appVersion/appVersionTitle above, which both target the static "App version" label.
-    this.appVersionValue = page.locator('#app-version')
-
     this.logoTitleText = 'Chronos'
     this.logoSubtitleText = 'Personal Space'
-    this.logoImage = page.getByRole('img', { name: this.logoTitleText })
-    // The sidebar logo is a <p>, not a heading — the app fixed the duplicate-<h1> bug by
-    // demoting this logo rather than the page's own content heading. See Header.checkOnlyOneH1.
-    this.logoTitle = this.sidebar.getByText(this.logoTitleText, { exact: true })
-    this.logoSubtitle = page.getByText(this.logoSubtitleText)
-
     this.navDashboardText = 'Dashboard'
     this.navOpenTasksText = 'Open Tasks'
     this.navClosedTasksText = 'Closed Tasks'
     this.navCalendarText = 'Calendar'
+
+    this.openMenuButton = page.getByRole('button', { name: 'menu_open' })
+    this.appVersionTitle = page.getByText(this.appVersionTitleText, { exact: true })
+    this.appVersion = page.getByText(this.appVersionTitleText)
+    // The actual version number (e.g. "v1.0.0"), fetched from assets/version.json — distinct
+    // from appVersion/appVersionTitle above, which both target the static "App version" label.
+    this.appVersionValue = page.locator('#app-version')
+
+    // <aside id="sidebar"> carries the implicit ARIA role "complementary" — no need for a
+    // CSS/ID fallback, it's already semantic.
+    this.sidebar = page.getByRole('complementary')
+
+    this.logoImage = page.getByRole('img', { name: this.logoTitleText })
+    this.logoTitle = this.sidebar.getByText(this.logoTitleText, { exact: true })
+    this.logoSubtitle = page.getByText(this.logoSubtitleText)
 
     // Scoped to #sidebar: the breadcrumb on OpenTasksPage/ClosedTasksPage has its own
     // "home" link accessible-named "Dashboard", which otherwise collides with this one.
@@ -101,16 +102,21 @@ export class SiteBarMenu extends AppBar {
     return this
   }
 
+  async clickMenuButton(): Promise<this> {
+    await this.openMenuButton.click()
+    return this
+  }
+
   async checkOpenAndCloseSiteMenu(): Promise<this> {
     await this.checkVisibilityForOpenMenu()
     await this.checkLogoExpandedVisible()
     await this.checkVersionOfAppIsVisible()
     await this.checkNavExpandedVisible()
-    await this.openMenuButton.click()
+    await this.clickMenuButton()
     await this.checkLogoCollapsedHidden()
     await this.checkVersionOfAppIsNotVisible()
     await this.checkNavCollapsedVisible()
-    await this.openMenuButton.click()
+    await this.clickMenuButton()
     return this
   }
 
@@ -121,12 +127,12 @@ export class SiteBarMenu extends AppBar {
   }
 
   async checkVersionOfAppIsVisible(): Promise<this> {
-    await expect(this.appVersion).toBeVisible()
+    await expect.soft(this.appVersion).toBeVisible()
     return this
   }
 
   async checkVersionOfAppIsNotVisible(): Promise<this> {
-    await expect(this.appVersion).not.toBeVisible()
+    await expect.soft(this.appVersion).not.toBeVisible()
     return this
   }
 

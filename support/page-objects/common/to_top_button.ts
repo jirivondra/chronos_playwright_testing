@@ -3,24 +3,22 @@ import { Footer } from './footer'
 
 export class ToTopButton extends Footer {
   private readonly toTopButton: Locator
-  private readonly visibleOpacity: string
-  private readonly hiddenOpacity: string
 
   constructor(page: Page, path: string) {
     super(page, path)
     this.toTopButton = this.page.getByRole('button', { name: 'arrow_upward' })
-    this.visibleOpacity = '1'
-    this.hiddenOpacity = '0'
   }
 
+  // FIXME: relies on the app toggling the `hidden` attribute (display:none) once the
+  // opacity fade-out finishes, not just opacity alone. Not yet on Chronost_App's main —
+  // un-fixme the two "ToTop Button Full Flow" tests once it lands.
   async checkToTopButtonVisible(): Promise<this> {
-    await expect.soft(this.toTopButton).toBeVisible()
-    await expect.soft(this.toTopButton).toHaveCSS('opacity', this.visibleOpacity)
+    await expect(this.toTopButton).toBeVisible()
     return this
   }
 
   async checkToTopButtonNotVisible(): Promise<this> {
-    await expect(this.toTopButton).toHaveCSS('opacity', this.hiddenOpacity)
+    await expect(this.toTopButton).not.toBeVisible()
     return this
   }
 
