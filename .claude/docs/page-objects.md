@@ -112,10 +112,21 @@ private readonly signInButton: Locator = this.page.getByRole('button', { name: '
 private readonly userName: Locator = this.page.getByLabel('Username')
 ```
 
-Fall back to a CSS/ID `Locator` only when the element has no accessible role, name, or label of its own **and** it is not itself the target of a user action or assertion — typically a structural container used purely to scope a further semantic query:
+Before falling back to CSS/ID, check whether the underlying HTML tag already carries an
+implicit ARIA role — semantic HTML5 elements (`<aside>`, `<nav>`, `<main>`, `<header>`,
+`<footer>`, `<form>`) get one for free, even with no explicit `role="..."` in the markup.
+Check the real markup (sibling repo) rather than assuming — a container that looks like a
+plain `<div>` may already be semantic:
 
 ```ts
-// acceptable — #open-list has no role/label; it only scopes the getByRole/getByText calls below it
+// <aside id="sidebar"> is implicitly role="complementary" — no CSS/ID needed
+private readonly sidebar: Locator = this.page.getByRole('complementary')
+```
+
+Fall back to a CSS/ID `Locator` only when the element genuinely has no accessible role, name, or label of its own (a plain `<div>`/`<span>` with no semantic tag) **and** it is not itself the target of a user action or assertion — typically a structural container used purely to scope a further semantic query:
+
+```ts
+// acceptable — #open-list is a plain <div>, no role; it only scopes the getByRole/getByText calls below it
 private readonly openList: Locator = this.page.locator('#open-list')
 ```
 

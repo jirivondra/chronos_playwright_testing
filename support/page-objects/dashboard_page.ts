@@ -4,7 +4,7 @@ import { SiteBarMenu } from './common/site_bar_menu'
 import { OpenTask } from './common/open_task'
 import { HttpMethod } from '../constants/http_method'
 import { todosEndpoint } from '../constants/endpoints'
-import type { NewTaskPage } from './new_task_page'
+import { NewTaskPage } from './new_task_page'
 import { dashboardPageData } from '../test-data/dashboard_page_data'
 import { Todo } from '../types/chronos/todo'
 
@@ -41,6 +41,7 @@ export class DashboardPage extends SiteBarMenu {
   private readonly backendUnreachableScreen: Locator
   private readonly backendUnreachableHeading: Locator
   private readonly backendUnreachableRetryButton: Locator
+  private readonly connectionRefusedErrorCode: string
 
   constructor(page: Page) {
     super(page, '/dashboard.html')
@@ -83,6 +84,7 @@ export class DashboardPage extends SiteBarMenu {
     this.backendUnreachableRetryButton = this.backendUnreachableScreen.getByRole('button', {
       name: 'Try Again',
     })
+    this.connectionRefusedErrorCode = 'connectionrefused'
   }
 
   async clickExpandButton(): Promise<this> {
@@ -158,7 +160,9 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async simulateBackendUnreachable(): Promise<this> {
-    await this.page.route(`**${todosEndpoint}`, (route) => route.abort('connectionrefused'))
+    await this.page.route(`**${todosEndpoint}`, (route) =>
+      route.abort(this.connectionRefusedErrorCode)
+    )
     return this
   }
 
@@ -205,10 +209,9 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async clickButtonNewTask(): Promise<NewTaskPage> {
-    const { NewTaskPage: NewTaskPageCtor } = await import('./new_task_page')
     await this.newTaskButton.click()
     await this.page.waitForURL(this.newTaskUrlPattern)
-    return new NewTaskPageCtor(this.page)
+    return new NewTaskPage(this.page)
   }
 
   async checkNewTaskNavigationRequest(): Promise<this> {
