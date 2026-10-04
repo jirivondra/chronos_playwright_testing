@@ -404,6 +404,17 @@ Every fixture in `auth-fixtures.ts` also injects `theme` into `localStorage` via
 | `pagination_data.ts`        | `generateRandomPageNumber`  | Factory (faker) returning a random page number in `[1, totalPages]`                                                                                                                                                                              |
 | `pagination_data.ts`        | `generateNonLastPageNumber` | Factory (faker) returning a random page number in `[1, totalPages - 1]` — guaranteed not the last (possibly partial) page                                                                                                                        |
 
+## Constants
+
+Shared runtime values that are neither a compile-time-only type (`support/types/`) nor
+app-content test data (`support/test-data/`) — e.g. a protocol-level enum used by more
+than one file. Unlike `type`/`interface`, these produce real code at runtime.
+
+| File                               | Exports         | Description                                                                                                                                                                          |
+| ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `support/constants/http_method.ts` | `HttpMethod`    | Enum of HTTP verbs (`Get`, `Post`, `Put`, `Delete`), used by `ApiHelper.apiRequest()` and directly in tests                                                                          |
+| `support/constants/endpoints.ts`   | `todosEndpoint` | The `/todos` API path. Shared by `OpenTask` (composed, not in the inheritance chain), `DashboardPage`, and `LoginPage` — these have no common ancestor below the generic `ApiHelper` |
+
 ## Types
 
 | File                                              | Exports                      | Description                                                                                                                                                                                                                  |
