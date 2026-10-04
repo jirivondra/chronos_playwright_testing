@@ -2,6 +2,7 @@ import { Page, Locator, expect } from '@playwright/test'
 import { ApiHelper } from './api_helper'
 import { dashboardPageData } from '../../test-data/dashboard_page_data'
 import { Todo } from '../../types/chronos/todo'
+import { todosEndpoint } from '../../constants/endpoints'
 
 export class OpenTask extends ApiHelper {
   private readonly openList: Locator
@@ -9,7 +10,6 @@ export class OpenTask extends ApiHelper {
   readonly openListEmptyMessage: Locator
   private readonly openListEmptyMessageText: string
   readonly expandOpenListButton: Locator
-  private readonly todosEndpoint: string
   private readonly editButtonLabel: string
   private readonly deleteButtonLabel: string
   readonly completedTaskClass: RegExp
@@ -21,7 +21,6 @@ export class OpenTask extends ApiHelper {
     this.openListEmptyMessageText = dashboardPageData.emptyMessage
     this.openListEmptyMessage = this.openList.getByText(this.openListEmptyMessageText)
     this.expandOpenListButton = this.openList.getByRole('button', { name: /Zobrazit všechny/ })
-    this.todosEndpoint = '/todos'
     this.editButtonLabel = 'edit'
     this.deleteButtonLabel = 'delete'
     this.completedTaskClass = /line-through/
@@ -49,7 +48,7 @@ export class OpenTask extends ApiHelper {
   }
 
   async countOpenTasks(): Promise<number> {
-    const response = await this.get(this.todosEndpoint)
+    const response = await this.get(todosEndpoint)
     const todos = (await response.json()) as Todo[]
     return todos.filter((t) => !t.completed).length
   }
@@ -71,10 +70,10 @@ export class OpenTask extends ApiHelper {
   }
 
   async deleteTaskByTitle(title: string): Promise<void> {
-    const response = await this.get(this.todosEndpoint)
+    const response = await this.get(todosEndpoint)
     const todos = (await response.json()) as Todo[]
     const ids = todos.filter((t) => t.title === title).map((t) => t.id)
-    await Promise.all(ids.map((id) => this.delete(`${this.todosEndpoint}/${id}`)))
+    await Promise.all(ids.map((id) => this.delete(`${todosEndpoint}/${id}`)))
   }
 
   async checkTaskInOpenSection(taskName: string): Promise<this> {

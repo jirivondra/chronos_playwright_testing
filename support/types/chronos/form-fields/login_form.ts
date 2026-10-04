@@ -1,9 +1,9 @@
-export type LoginForm = {
+export interface LoginForm {
   username: string
   password: string
 }
 
-export type LoginTestCase = {
+export interface LoginTestCase {
   description: string
   username: string
   password: string

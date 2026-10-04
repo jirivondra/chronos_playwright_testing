@@ -20,7 +20,7 @@
 
 All methods return `Promise<Response>` (native `fetch` response). `get`, `post`, `put`, and `delete` are `protected` — accessible only within page objects. `apiRequest` is `public`.
 
-`HttpMethod` is an exported enum (`HttpMethod.Get`, `HttpMethod.Post`, `HttpMethod.Put`, `HttpMethod.Delete`) from `support/page-objects/common/api_helper.ts` — import it instead of passing raw method strings, the same rule as any other magic string.
+`HttpMethod` is an exported enum (`HttpMethod.Get`, `HttpMethod.Post`, `HttpMethod.Put`, `HttpMethod.Delete`) from `support/constants/http_method.ts` — import it instead of passing raw method strings, the same rule as any other magic string.
 
 Authentication and `Content-Type: application/json` are added automatically from environment variables (`API_BASE_URL`, `API_USERNAME`, `API_PASSWORD`).
 
@@ -83,7 +83,7 @@ test('display user profile', async ({ userPage }) => {
 **Directly via `apiRequest`** — when the call is a one-off teardown or verification that does not belong to any page object and would not be reused. Store the endpoint in a named constant, not as an inline string, and pass the method as `HttpMethod`, not a raw string:
 
 ```ts
-import { HttpMethod } from '../support/page-objects/common/api_helper'
+import { HttpMethod } from '../support/constants/http_method'
 
 test('delete user', async ({ userPage }) => {
   const userEndpoint = '/api/users/42'

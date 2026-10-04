@@ -2,8 +2,9 @@ import { Page, Locator, expect } from '@playwright/test'
 import dayjs from 'dayjs'
 import { SiteBarMenu } from './common/site_bar_menu'
 import { OpenTask } from './common/open_task'
-import { HttpMethod } from './common/api_helper'
-import type { NewTaskPage } from './new_task_page'
+import { HttpMethod } from '../constants/http_method'
+import { todosEndpoint } from '../constants/endpoints'
+import { NewTaskPage } from './new_task_page'
 import { dashboardPageData } from '../test-data/dashboard_page_data'
 import { Todo } from '../types/chronos/todo'
 
@@ -11,7 +12,6 @@ export class DashboardPage extends SiteBarMenu {
   private readonly openTask: OpenTask
   readonly openListEmptyMessage: Locator
   readonly expandOpenListButton: Locator
-  private readonly todosEndpoint: string
   readonly newTaskButton: Locator
   private readonly doneList: Locator
   private readonly doneListTaskTitle: Locator
@@ -41,13 +41,13 @@ export class DashboardPage extends SiteBarMenu {
   private readonly backendUnreachableScreen: Locator
   private readonly backendUnreachableHeading: Locator
   private readonly backendUnreachableRetryButton: Locator
+  private readonly connectionRefusedErrorCode: string
 
   constructor(page: Page) {
     super(page, '/dashboard.html')
     this.openTask = new OpenTask(page)
     this.openListEmptyMessage = this.openTask.openListEmptyMessage
     this.expandOpenListButton = this.openTask.expandOpenListButton
-    this.todosEndpoint = '/todos'
     this.newTaskButton = page.getByRole('button', { name: 'New Task' })
     this.doneList = page.locator('#done-list')
     this.doneListTaskTitle = this.doneList.getByRole('heading', { level: 4 })
@@ -84,6 +84,7 @@ export class DashboardPage extends SiteBarMenu {
     this.backendUnreachableRetryButton = this.backendUnreachableScreen.getByRole('button', {
       name: 'Try Again',
     })
+    this.connectionRefusedErrorCode = 'connectionrefused'
   }
 
   async clickExpandButton(): Promise<this> {
@@ -159,7 +160,9 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async simulateBackendUnreachable(): Promise<this> {
-    await this.page.route(`**${this.todosEndpoint}`, (route) => route.abort('connectionrefused'))
+    await this.page.route(`**${todosEndpoint}`, (route) =>
+      route.abort(this.connectionRefusedErrorCode)
+    )
     return this
   }
 
@@ -172,7 +175,7 @@ export class DashboardPage extends SiteBarMenu {
 
   async toggleTask(taskName: string): Promise<this> {
     const response = this.page.waitForResponse(
-      (res) => res.url().includes(this.todosEndpoint) && res.ok()
+      (res) => res.url().includes(todosEndpoint) && res.ok()
     )
     await this.taskCheckbox(taskName).click()
     await response
@@ -206,10 +209,9 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async clickButtonNewTask(): Promise<NewTaskPage> {
-    const { NewTaskPage: NewTaskPageCtor } = await import('./new_task_page')
     await this.newTaskButton.click()
     await this.page.waitForURL(this.newTaskUrlPattern)
-    return new NewTaskPageCtor(this.page)
+    return new NewTaskPage(this.page)
   }
 
   async checkNewTaskNavigationRequest(): Promise<this> {
@@ -229,7 +231,7 @@ export class DashboardPage extends SiteBarMenu {
 
   async checkPulseStats(): Promise<this> {
     await this.goto()
-    const response = await this.get(this.todosEndpoint)
+    const response = await this.get(todosEndpoint)
     const todos = (await response.json()) as Todo[]
     const total = todos.length
     const doneCount = todos.filter((t) => t.completed).length
@@ -245,7 +247,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async countUpcomingTasks(): Promise<number> {
-    const response = await this.get(this.todosEndpoint)
+    const response = await this.get(todosEndpoint)
     const todos = (await response.json()) as Todo[]
     const today = dayjs().format('YYYY-MM-DD')
     const weekAhead = dayjs().add(7, 'day').format('YYYY-MM-DD')
@@ -266,7 +268,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async createTaskWithDueDate(title: string, dueDate: string, completed = false): Promise<this> {
-    await this.post(this.todosEndpoint, { title, due_date: dueDate, completed })
+    await this.post(todosEndpoint, { title, due_date: dueDate, completed })
     await this.goto()
     return this
   }
