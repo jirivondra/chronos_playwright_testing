@@ -1,4 +1,4 @@
-export type SortOrderCase = {
+export interface SortOrderCase {
   description: string
   value: 'asc' | 'desc'
   label: string
@@ -9,7 +9,7 @@ export const sortOrderCases: SortOrderCase[] = [
   { description: 'Oldest First', value: 'asc', label: 'Oldest first' },
 ]
 
-export type PageSizeCase = {
+export interface PageSizeCase {
   description: string
   value: number
 }
