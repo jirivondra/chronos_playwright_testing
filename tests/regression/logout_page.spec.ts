@@ -5,20 +5,24 @@ import { themeCases } from '../../support/test-data/visual_testing_data'
 
 test.describe('Test Logout page', () => {
   test.describe('Atomic Tests For Logout Page', () => {
-    test('Check H1 On Page Logout', async ({ logoutPage }) => {
-      await logoutPage.checkH1(logoutPageData.h1)
+    test.describe('Structure', () => {
+      test('Check H1 On Page Logout', async ({ logoutPage }) => {
+        await logoutPage.checkH1(logoutPageData.h1)
+      })
+
+      test('Check Return To Login Link Visibility', async ({ logoutPage }) => {
+        await logoutPage.checkReturnToLoginVisible()
+      })
     })
 
-    test('Check Return To Login Link Visibility', async ({ logoutPage }) => {
-      await logoutPage.checkReturnToLoginVisible()
-    })
+    test.describe('Session Behavior', () => {
+      test('Logout Clears Auth Session', async ({ logoutPage }) => {
+        await logoutPage.simulateLoggedInSession().then((l) => l.checkSessionCleared())
+      })
 
-    test('Logout Clears Auth Session', async ({ logoutPage }) => {
-      await logoutPage.simulateLoggedInSession().then((l) => l.checkSessionCleared())
-    })
-
-    test('Click Return To Login Navigates To Login Page', async ({ logoutPage }) => {
-      await logoutPage.clickReturnToLogin().then((l) => l.checkUrl(loginPageData.urlLoginPage))
+      test('Click Return To Login Navigates To Login Page', async ({ logoutPage }) => {
+        await logoutPage.clickReturnToLogin().then((l) => l.checkUrl(loginPageData.urlLoginPage))
+      })
     })
   })
 
