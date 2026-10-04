@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test'
 import { SiteBarMenu } from './common/site_bar_menu'
 import { Pagination } from './common/pagination'
+import { Todo } from '../types/chronos/todo'
 
 export class ClosedTasksPage extends SiteBarMenu {
   private readonly pagination: Pagination
@@ -8,6 +9,9 @@ export class ClosedTasksPage extends SiteBarMenu {
   private readonly taskGroup: Locator
   private readonly completedTaskClass: RegExp
   private readonly pageHeaderBlock: Locator
+  private readonly sortOrderSelect: Locator
+  private readonly pageSizeSelect: Locator
+  private readonly todosEndpoint: string
 
   constructor(page: Page) {
     super(page, '/finished-tasks.html')
@@ -15,16 +19,68 @@ export class ClosedTasksPage extends SiteBarMenu {
     this.doneList = page.locator('#done-list')
     this.taskGroup = page.locator('.group')
     this.completedTaskClass = /line-through/
+    this.todosEndpoint = '/todos'
     // The breadcrumb + h1 + subtitle share one unlabelled <div>, which is the h1's own
     // parent — scoping off the h1 avoids depending on a utility class name.
     this.pageHeaderBlock = page
       .locator('main')
       .getByRole('heading', { level: 1 })
       .locator('xpath=..')
+    this.sortOrderSelect = page.locator('#sort-order')
+    this.pageSizeSelect = page.locator('#page-size')
   }
 
   async checkHeaderSnapshot(name: string): Promise<this> {
     await expect(this.pageHeaderBlock).toHaveScreenshot(name)
+    return this
+  }
+
+  async checkSortOrderValue(value: string): Promise<this> {
+    await expect(this.sortOrderSelect).toHaveValue(value)
+    return this
+  }
+
+  async checkSortOrderOptions(labels: string[]): Promise<this> {
+    await expect(this.sortOrderSelect.locator('option')).toHaveText(labels)
+    return this
+  }
+
+  async selectSortOrder(value: string): Promise<this> {
+    await this.sortOrderSelect.selectOption(value)
+    return this
+  }
+
+  async isPageSizeSelectorVisible(): Promise<boolean> {
+    return this.pageSizeSelect.isVisible()
+  }
+
+  async checkPageSizeValue(value: number): Promise<this> {
+    await expect(this.pageSizeSelect).toHaveValue(String(value))
+    return this
+  }
+
+  async checkPageSizeOptions(values: number[]): Promise<this> {
+    await expect(this.pageSizeSelect.locator('option')).toHaveText(values.map(String))
+    return this
+  }
+
+  async selectPageSize(value: number): Promise<this> {
+    await this.pageSizeSelect.selectOption(String(value))
+    return this
+  }
+
+  async getCompletedTaskTitles(order: 'asc' | 'desc' = 'desc'): Promise<string[]> {
+    const response = await this.get(`${this.todosEndpoint}?order=${order}`)
+    const todos = (await response.json()) as Todo[]
+    return todos.filter((t) => t.completed).map((t) => t.title)
+  }
+
+  async checkDisplayedTaskTitlesOrder(expectedTitles: string[]): Promise<this> {
+    const actualTitles = await this.doneList
+      .locator(this.taskGroup)
+      .getByRole('heading')
+      .allTextContents()
+    expect(actualTitles).toEqual(expectedTitles)
     return this
   }
 
