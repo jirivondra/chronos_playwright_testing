@@ -1,7 +1,4 @@
-export type ThemeTestCase = {
-  description: string
-  theme: 'light' | 'dark'
-}
+import { ThemeTestCase } from '../types/chronos/theme'
 
 export const themeCases: ThemeTestCase[] = [
   { description: 'Light Mode', theme: 'light' },

@@ -7,11 +7,10 @@ import { ClosedTasksPage } from '../page-objects/closed_tasks_page'
 import { LogoutPage } from '../page-objects/logout_page'
 import { Theme as ThemeComponent } from '../page-objects/common/theme'
 import { loginCredentials } from '../test-data/login_page_data'
+import { ThemeValue } from '../types/chronos/theme'
 
-export type Theme = 'light' | 'dark'
-
-export type AuthFixtures = {
-  theme: Theme
+export interface AuthFixtures {
+  theme: ThemeValue
   loginPage: LoginPage
   dashboardPage: DashboardPage
   newTaskPage: NewTaskPage
@@ -65,6 +64,7 @@ export const authFixtures = base.extend<AuthFixtures>({
     await page.context().addInitScript((t) => {
       sessionStorage.setItem('auth', t)
     }, token)
+
     await new ThemeComponent(page).inject(theme)
 
     const openTasksPage = new OpenTasksPage(page)

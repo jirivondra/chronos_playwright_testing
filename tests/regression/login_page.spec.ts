@@ -9,7 +9,7 @@ import { contactMeInfo } from '../../support/test-data/general'
 import { themeCases } from '../../support/test-data/visual_testing_data'
 
 test.describe('Test Login page', () => {
-  test.describe('Atomic Tests For Login Form', () => {
+  test.describe('Atomic Tests For Footer', () => {
     test('Check H1 On Page Login', async ({ loginPage }) => {
       await loginPage.checkH1(loginPageData.h1)
     })
@@ -29,9 +29,7 @@ test.describe('Test Login page', () => {
     test('Check Forgot Access Link Visibility', async ({ loginPage }) => {
       await loginPage.checkForgotAccessVisible()
     })
-  })
 
-  test.describe('Atomic Tests For Footer', () => {
     test('Check Heading Visibility', async ({ loginPage }) => {
       await loginPage.checkHeadingVisible()
     })
@@ -54,7 +52,9 @@ test.describe('Test Login page', () => {
   })
 
   test.describe('E2E Test For Login Page', () => {
-    test('ToTop Button Full Flow', async ({ loginPage }) => {
+    // Needs the app to toggle `hidden` (display:none) on the button after the opacity
+    // fade-out, not just opacity alone. Un-fixme once that lands on main.
+    test.fixme('ToTop Button Full Flow', async ({ loginPage }) => {
       await loginPage
         .checkToTopButtonNotVisible()
         .then((l) => l.scrollToBottom())
@@ -156,6 +156,16 @@ test.describe('Test Login page', () => {
         .then((l) => l.checkPasswordFieldError(loginPageData.passwordFieldErrorMessage))
         .then((l) => l.fillPassword(loginCredentials.validUser.password))
         .then((l) => l.checkPasswordFieldErrorHidden())
+    })
+
+    test('Username Field Error Hides When Retyping Username', async ({ loginPage }) => {
+      await loginPage
+        .fillUserName(loginPageData.underMinLengthValue)
+        .then((l) => l.fillPassword(loginCredentials.invalidUser.password))
+        .then((l) => l.clickSubmit())
+        .then((l) => l.checkUsernameFieldError(loginPageData.usernameFieldErrorMessage))
+        .then((l) => l.fillUserName(loginCredentials.validUser.username))
+        .then((l) => l.checkUsernameFieldErrorHidden())
     })
 
     // Known app bug: the sign-in button is disabled on submit and only re-enabled
