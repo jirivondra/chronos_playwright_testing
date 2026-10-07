@@ -1,9 +1,13 @@
 import { Page, Locator, expect } from '@playwright/test'
 import { ToTopButton } from './common/to_top_button'
+import { Footer } from './common/footer'
 import { DashboardPage } from './dashboard_page'
 import { todosEndpoint } from '../constants/endpoints'
 
 export class LoginPage extends ToTopButton {
+  private readonly footer: Footer
+  readonly footerHeading: Locator
+  readonly contactIcons: Locator
   private readonly signInButton: Locator
   private readonly createAccountLink: Locator
   private readonly forgetAccessLink: Locator
@@ -20,6 +24,9 @@ export class LoginPage extends ToTopButton {
 
   constructor(page: Page) {
     super(page, '/login.html')
+    this.footer = new Footer(page)
+    this.footerHeading = this.footer.footerHeading
+    this.contactIcons = this.footer.contactIcons
     this.dashboardUrlPattern = '**/dashboard.html'
     this.userName = this.page.getByLabel('Username')
     this.passwordInput = this.page.getByLabel('Password')
@@ -33,6 +40,26 @@ export class LoginPage extends ToTopButton {
     this.passwordHiddenType = 'password'
     this.passwordVisibleType = 'text'
     this.connectionRefusedErrorCode = 'connectionrefused'
+  }
+
+  async checkUrl(url: string): Promise<this> {
+    await expect(this.page).toHaveURL(url)
+    return this
+  }
+
+  async checkFullPageSnapshot(name: string): Promise<this> {
+    await expect(this.page).toHaveScreenshot(name, { fullPage: true })
+    return this
+  }
+
+  async checkHeadingVisible(): Promise<this> {
+    await this.footer.checkHeadingVisible()
+    return this
+  }
+
+  async checkContactIconLink(label: string): Promise<this> {
+    await this.footer.checkContactIconLink(label)
+    return this
   }
 
   async fillUserName(userName: string): Promise<this> {

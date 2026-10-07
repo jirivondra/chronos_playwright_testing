@@ -20,6 +20,11 @@ export class NewTaskPage extends SiteBarMenu {
     this.createTaskRequestUrlPattern = /api\/tasks/
   }
 
+  async checkUrl(url: string): Promise<this> {
+    await expect(this.page).toHaveURL(url)
+    return this
+  }
+
   async fillTaskTitle(): Promise<this> {
     await this.taskNameInput.fill(this.taskName)
     return this

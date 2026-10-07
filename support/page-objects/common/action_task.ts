@@ -1,10 +1,11 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { ApiHelper } from './api_helper'
+import { getTodos, deleteTodo } from '../../helper/todo_api'
 import { dashboardPageData } from '../../test-data/dashboard_page_data'
-import { Todo } from '../../types/chronos/todo'
 import { todosEndpoint } from '../../constants/endpoints'
+import { Todo } from '../../types/chronos/todo'
 
-export class OpenTask extends ApiHelper {
+export class ActionTask {
+  private readonly page: Page
   private readonly openList: Locator
   readonly taskGroup: Locator
   readonly openListEmptyMessage: Locator
@@ -12,10 +13,16 @@ export class OpenTask extends ApiHelper {
   readonly expandOpenListButton: Locator
   private readonly editButtonLabel: string
   private readonly deleteButtonLabel: string
+  private readonly infoButtonLabel: string
+  private readonly deleteDialog: Locator
+  private readonly deleteDialogCancelButton: Locator
+  private readonly deleteDialogConfirmButton: Locator
+  private readonly taskDetailUrlPattern: RegExp
+  private readonly editTaskUrlPattern: RegExp
   readonly completedTaskClass: RegExp
 
   constructor(page: Page) {
-    super('')
+    this.page = page
     this.openList = page.locator('#open-list')
     this.taskGroup = page.locator('.group')
     this.openListEmptyMessageText = dashboardPageData.emptyMessage
@@ -23,6 +30,12 @@ export class OpenTask extends ApiHelper {
     this.expandOpenListButton = this.openList.getByRole('button', { name: /Zobrazit všechny/ })
     this.editButtonLabel = 'edit'
     this.deleteButtonLabel = 'delete'
+    this.infoButtonLabel = 'info'
+    this.deleteDialog = page.locator('#delete-dialog')
+    this.deleteDialogCancelButton = page.getByRole('button', { name: 'Cancel', exact: true })
+    this.deleteDialogConfirmButton = page.getByRole('button', { name: 'Delete', exact: true })
+    this.taskDetailUrlPattern = /task-detail\.html\?id=\d+&from=\w+/
+    this.editTaskUrlPattern = /edit-task\.html\?id=\d+&from=\w+/
     this.completedTaskClass = /line-through/
   }
 
@@ -42,13 +55,19 @@ export class OpenTask extends ApiHelper {
       .getByRole('button', { name: this.deleteButtonLabel, exact: true })
   }
 
+  private taskInfoButton(taskName: string): Locator {
+    return this.taskGroup
+      .filter({ hasText: taskName })
+      .getByRole('button', { name: this.infoButtonLabel, exact: true })
+  }
+
   async clickExpandButton(): Promise<this> {
     await this.expandOpenListButton.click()
     return this
   }
 
   async countOpenTasks(): Promise<number> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     return todos.filter((t) => !t.completed).length
   }
@@ -70,10 +89,10 @@ export class OpenTask extends ApiHelper {
   }
 
   async deleteTaskByTitle(title: string): Promise<void> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const ids = todos.filter((t) => t.title === title).map((t) => t.id)
-    await Promise.all(ids.map((id) => this.delete(`${todosEndpoint}/${id}`)))
+    await Promise.all(ids.map((id) => deleteTodo(id)))
   }
 
   async checkTaskInOpenSection(taskName: string): Promise<this> {
@@ -84,6 +103,47 @@ export class OpenTask extends ApiHelper {
   async checkTaskHasEditAndDeleteButtons(taskName: string): Promise<this> {
     await expect.soft(this.taskEditButton(taskName)).toBeVisible()
     await expect.soft(this.taskDeleteButton(taskName)).toBeVisible()
+    return this
+  }
+
+  async clickDeleteButton(taskName: string): Promise<this> {
+    await this.taskDeleteButton(taskName).click()
+    return this
+  }
+
+  async checkDeleteDialogVisible(): Promise<this> {
+    await expect(this.deleteDialog).toBeVisible()
+    return this
+  }
+
+  async checkDeleteDialogNotVisible(): Promise<this> {
+    await expect(this.deleteDialog).not.toBeVisible()
+    return this
+  }
+
+  async cancelDeleteDialog(): Promise<this> {
+    await this.deleteDialogCancelButton.click()
+    return this
+  }
+
+  async confirmDeleteDialog(): Promise<this> {
+    const response = this.page.waitForResponse(
+      (res) => res.url().includes(todosEndpoint) && res.ok()
+    )
+    await this.deleteDialogConfirmButton.click()
+    await response
+    return this
+  }
+
+  async checkTaskDetailNavigation(taskName: string): Promise<this> {
+    await this.taskInfoButton(taskName).click()
+    await this.page.waitForURL(this.taskDetailUrlPattern)
+    return this
+  }
+
+  async checkTaskEditNavigation(taskName: string): Promise<this> {
+    await this.taskEditButton(taskName).click()
+    await this.page.waitForURL(this.editTaskUrlPattern)
     return this
   }
 

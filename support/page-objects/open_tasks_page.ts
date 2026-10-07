@@ -1,67 +1,102 @@
 import { Page, Locator } from '@playwright/test'
 import { SiteBarMenu } from './common/site_bar_menu'
-import { OpenTask } from './common/open_task'
+import { ActionTask } from './common/action_task'
 import { Pagination } from './common/pagination'
 
 export class OpenTasksPage extends SiteBarMenu {
-  private readonly openTask: OpenTask
+  private readonly actionTask: ActionTask
   private readonly pagination: Pagination
   readonly openListEmptyMessage: Locator
   readonly expandOpenListButton: Locator
 
   constructor(page: Page) {
     super(page, '/open-tasks.html')
-    this.openTask = new OpenTask(page)
+    this.actionTask = new ActionTask(page)
     this.pagination = new Pagination(page)
-    this.openListEmptyMessage = this.openTask.openListEmptyMessage
-    this.expandOpenListButton = this.openTask.expandOpenListButton
+    this.openListEmptyMessage = this.actionTask.openListEmptyMessage
+    this.expandOpenListButton = this.actionTask.expandOpenListButton
   }
 
   async clickExpandButton(): Promise<this> {
-    await this.openTask.clickExpandButton()
+    await this.actionTask.clickExpandButton()
     return this
   }
 
   async countOpenTasks(): Promise<number> {
-    return this.openTask.countOpenTasks()
+    return this.actionTask.countOpenTasks()
   }
 
   async checkExpandButtonVisible(): Promise<this> {
-    await this.openTask.checkExpandButtonVisible()
+    await this.actionTask.checkExpandButtonVisible()
     return this
   }
 
   async checkExpandButtonNotVisible(): Promise<this> {
-    await this.openTask.checkExpandButtonNotVisible()
+    await this.actionTask.checkExpandButtonNotVisible()
     return this
   }
 
   async checkEmptyOpenSection(): Promise<this> {
-    await this.openTask.checkEmptyOpenSection()
+    await this.actionTask.checkEmptyOpenSection()
     return this
   }
 
   async deleteTaskByTitle(title: string): Promise<void> {
-    await this.openTask.deleteTaskByTitle(title)
+    await this.actionTask.deleteTaskByTitle(title)
   }
 
   async checkTaskInOpenSection(taskName: string): Promise<this> {
-    await this.openTask.checkTaskInOpenSection(taskName)
+    await this.actionTask.checkTaskInOpenSection(taskName)
     return this
   }
 
   async checkTaskHasEditAndDeleteButtons(taskName: string): Promise<this> {
-    await this.openTask.checkTaskHasEditAndDeleteButtons(taskName)
+    await this.actionTask.checkTaskHasEditAndDeleteButtons(taskName)
+    return this
+  }
+
+  async clickDeleteButton(taskName: string): Promise<this> {
+    await this.actionTask.clickDeleteButton(taskName)
+    return this
+  }
+
+  async checkDeleteDialogVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogVisible()
+    return this
+  }
+
+  async checkDeleteDialogNotVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogNotVisible()
+    return this
+  }
+
+  async cancelDeleteDialog(): Promise<this> {
+    await this.actionTask.cancelDeleteDialog()
+    return this
+  }
+
+  async confirmDeleteDialog(): Promise<this> {
+    await this.actionTask.confirmDeleteDialog()
+    return this
+  }
+
+  async checkTaskDetailNavigation(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskDetailNavigation(taskName)
+    return this
+  }
+
+  async checkTaskEditNavigation(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskEditNavigation(taskName)
     return this
   }
 
   async checkAllTasksInOpenSectionMarkedIncomplete(): Promise<this> {
-    await this.openTask.checkAllTasksInOpenSectionMarkedIncomplete()
+    await this.actionTask.checkAllTasksInOpenSectionMarkedIncomplete()
     return this
   }
 
   async checkItemCountOnPage(expected: number): Promise<this> {
-    await this.openTask.checkItemCountOnPage(expected)
+    await this.actionTask.checkItemCountOnPage(expected)
     return this
   }
 

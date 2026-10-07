@@ -10,7 +10,7 @@ Page Object Model (POM) is a design pattern that separates page logic from the t
 
 ## Inheritance vs. Composition
 
-Common classes (`AppBar`, `SiteBarMenu`, `OpenTask`, …) can be brought into a page object in two ways.
+Common classes (`Header`, `SiteBarMenu`, `ActionTask`, …) can be brought into a page object in two ways.
 
 ### Inheritance — full class chain
 
@@ -19,14 +19,16 @@ Use when a page object needs the majority (~80%) of the functionality from the c
 Current chain:
 
 ```
-ApiHelper → BasePage → Header → Footer → ToTopButton → AppBar → SiteBarMenu → OpenTask → DashboardPage
+BasePage → Headline → ToTopButton → Header → SiteBarMenu → DashboardPage
 ```
 
-Each class in the chain is a self-contained unit — it defines its own selectors and methods and passes `page` and `path` upward via `super()`. Pages that share the same UI structure (app bar, sidebar menu, task list) use this pattern.
+Each class in the chain is a self-contained unit — it defines its own selectors and methods and passes `page` and `path` upward via `super()`. Pages that share the same UI structure (headings, header/app bar, sidebar menu) use this pattern. `ActionTask`, `Footer`, and API access (`support/helper/todo_api.ts`) are deliberately **not** in this chain — see the worked examples below and `api-helper.md`.
+
+Note `Headline` and `Header` are not synonyms here, even though they sound similar: `Headline` is the h1/h2 heading class (what used to be confusingly called `Header`); `Header` is the real `<header>`/`getByRole('banner')` top bar (what used to be called `AppBar`) — see the third worked example below.
 
 ```ts
 // DashboardPage needs the full stack — extend the deepest class required
-export class DashboardPage extends OpenTask {
+export class DashboardPage extends SiteBarMenu {
   // ...
 }
 ```
@@ -36,17 +38,17 @@ export class DashboardPage extends OpenTask {
 Use when a page object needs only **one** specific component from commons. Pulling in the full inheritance chain just to use one class is unnecessary coupling — instantiate that class as a property instead.
 
 ```ts
-// Only AppBar is needed — compose it as a property, do not extend the full chain
+// Only Header (the top app bar) is needed — compose it as a property, do not extend the full chain
 export class SpecialPage extends BasePage {
-  private readonly appBar: AppBar
+  private readonly header: Header
 
   constructor(page: Page) {
     super(page, '/special')
-    this.appBar = new AppBar(page, '/special')
+    this.header = new Header(page, '/special')
   }
 
   async clickLogout() {
-    return this.appBar.clickLogout()
+    return this.header.clickLogout()
   }
 }
 ```
@@ -64,7 +66,17 @@ export class SpecialPage extends BasePage {
 
 A class already sitting in the middle of the chain can stop belonging there once a new page joins that doesn't need it. If any page that otherwise fits the branch has to skip one of the chain's classes (extend a shallower ancestor instead of the deepest one), that class was never actually shared by every page in the branch — it only looked shared because nothing had challenged it yet. Pull it out into a standalone composed component instead of leaving it stranded mid-chain.
 
-**Worked example:** `NewTaskPage` always had to `extend SiteBarMenu` directly, skipping `OpenTask`, because it has no task list. That asymmetry was the signal that `OpenTask` never belonged in the chain at all — it was only ever used by `DashboardPage`, and later `OpenTasksPage`. Both now hold it as `private readonly openTask: OpenTask` instead of extending it, exactly like `Pagination`. Compare `common/open_task.ts` (composition-ready: extends only `ApiHelper` for its `get`/`delete` calls, takes just `page: Page`, no `path`) against `dashboard_page.ts` (composes it, delegates its full public API through thin wrappers so the change is invisible to tests).
+**Worked example:** `NewTaskPage` always had to `extend SiteBarMenu` directly, skipping `ActionTask`, because it has no task list. That asymmetry was the signal that `ActionTask` never belonged in the chain at all — it was only ever used by `DashboardPage`, and later `OpenTasksPage`. Both now hold it as `private readonly actionTask: ActionTask` instead of extending it, exactly like `Pagination`. Compare `common/action_task.ts` (composition-ready: no `extends` at all, takes just `page: Page`, no `path`) against `dashboard_page.ts` (composes it, delegates its full public API through thin wrappers so the change is invisible to tests).
+
+**Second worked example:** the old `ApiHelper` sat at the very root of the chain (`ApiHelper → BasePage → ...`), so every single page object inherited HTTP methods via `BasePage` — even `LoginPage`/`LogoutPage`/`NewTaskPage`/`OpenTasksPage`, which never made an API call. The same signal applied: not every page needed it, so it doesn't belong in the chain. It's now `support/helper/todo_api.ts` — plain functions imported directly by only the three places that actually call them (`DashboardPage`, `ClosedTasksPage`, `ActionTask`), per `api-helper.md`. Unlike `ActionTask`/`Pagination`, it isn't even a class — it carries no state tied to a `Page` instance, so a composed object would have been pure ceremony around functions that just need `fetch` and `process.env`.
+
+**Third worked example — when the fix is deletion, not composition:** the old `Header` class (now `Headline`) also held `checkUrl()` and `checkFullPageSnapshot()`. Neither is about headings — they ended up there only because `BasePage` was declared to hold no assertions, so the first generic assertion needed somewhere to go. Checking usage showed `checkUrl` is called on only 4 of 6 page objects (`DashboardPage`, `NewTaskPage`, `LoginPage`, `LogoutPage` — never `OpenTasksPage`/`ClosedTasksPage`) and `checkFullPageSnapshot` on only 2 (`LoginPage`, `LogoutPage`). Unlike `ActionTask`/`todo_api.ts`, these weren't worth composing either — each is a single-line `expect(...)` wrapper, so the fix was to delete them from the shared class and define them directly on the concrete page objects that need them. Composition exists to avoid repeating real logic; a one-line wrapper used by a minority of pages is cheaper duplicated than abstracted.
+
+This is a different call than `Headline`'s own `checkH1`/`checkH2`, which stayed shared: that's genuinely identical logic needed by (or structurally applicable to) every page, so 6 copies of the same few lines would be a real DRY violation, not a defensible one. (`checkH1` already asserts `toHaveCount(1)` as part of its soft-assertions, which is why a separate page-agnostic "exactly one h1" check isn't kept alongside it — every caller passes real text now, see `test-data.md`'s one-file-per-page convention.)
+
+**Fourth worked example — a chain class with no DOM to back it:** `Footer` used to sit in the middle of the trunk (`Headline → Footer → ToTopButton`), so every page inherited it — including the 4 main pages, which have no `<footer>` in their markup at all (checked against the real app: `<footer>` renders only on `login.html`/`logout.html`, zero elsewhere). This is a stronger case than the usual "not every page calls this method" signal — it's not a coverage gap, the element itself doesn't exist, so calling `Footer`'s methods on `DashboardPage` would fail at runtime, not just go untested. Unlike `checkUrl`/`checkFullPageSnapshot`, `Footer`'s methods are real logic (several locators, two methods), not a one-line wrapper, so the fix was composition, not duplication: `Footer` became a standalone class (no `extends`, just `page: Page`, same shape as `ActionTask`). `ToTopButton` now extends `Headline` directly, skipping the gap `Footer` left behind.
+
+Only `LoginPage` actually composes it (`private readonly footer: Footer`) — `logout.html` also renders a `<footer>`, but nothing in `logout_page.spec.ts` currently exercises it, so `LogoutPage` doesn't compose `Footer` either. This is the same judgment call as everywhere else in this file: compose where a test actually needs it, not where the DOM merely allows it. Add it to `LogoutPage` the same way the moment a test needs it.
 
 This cuts both ways: when adding a **new** page, check whether it needs everything the deepest class in its branch offers before extending it (same check as the Decision rule above); when an **existing** chain grows a sibling that doesn't need one of its classes, that's the moment to revisit whether that class should still be there.
 

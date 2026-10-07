@@ -1,15 +1,16 @@
 import { Page, Locator, expect } from '@playwright/test'
 import dayjs from 'dayjs'
 import { SiteBarMenu } from './common/site_bar_menu'
-import { OpenTask } from './common/open_task'
+import { ActionTask } from './common/action_task'
 import { HttpMethod } from '../constants/http_method'
 import { todosEndpoint } from '../constants/endpoints'
+import { getTodos, createTodo } from '../helper/todo_api'
 import { NewTaskPage } from './new_task_page'
 import { dashboardPageData } from '../test-data/dashboard_page_data'
 import { Todo } from '../types/chronos/todo'
 
 export class DashboardPage extends SiteBarMenu {
-  private readonly openTask: OpenTask
+  private readonly actionTask: ActionTask
   readonly openListEmptyMessage: Locator
   readonly expandOpenListButton: Locator
   readonly newTaskButton: Locator
@@ -45,9 +46,9 @@ export class DashboardPage extends SiteBarMenu {
 
   constructor(page: Page) {
     super(page, '/dashboard.html')
-    this.openTask = new OpenTask(page)
-    this.openListEmptyMessage = this.openTask.openListEmptyMessage
-    this.expandOpenListButton = this.openTask.expandOpenListButton
+    this.actionTask = new ActionTask(page)
+    this.openListEmptyMessage = this.actionTask.openListEmptyMessage
+    this.expandOpenListButton = this.actionTask.expandOpenListButton
     this.newTaskButton = page.getByRole('button', { name: 'New Task' })
     this.doneList = page.locator('#done-list')
     this.doneListTaskTitle = this.doneList.getByRole('heading', { level: 4 })
@@ -88,45 +89,80 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async clickExpandButton(): Promise<this> {
-    await this.openTask.clickExpandButton()
+    await this.actionTask.clickExpandButton()
     return this
   }
 
   async countOpenTasks(): Promise<number> {
-    return this.openTask.countOpenTasks()
+    return this.actionTask.countOpenTasks()
   }
 
   async checkExpandButtonVisible(): Promise<this> {
-    await this.openTask.checkExpandButtonVisible()
+    await this.actionTask.checkExpandButtonVisible()
     return this
   }
 
   async checkExpandButtonNotVisible(): Promise<this> {
-    await this.openTask.checkExpandButtonNotVisible()
+    await this.actionTask.checkExpandButtonNotVisible()
     return this
   }
 
   async checkEmptyOpenSection(): Promise<this> {
-    await this.openTask.checkEmptyOpenSection()
+    await this.actionTask.checkEmptyOpenSection()
     return this
   }
 
   async deleteTaskByTitle(title: string): Promise<void> {
-    await this.openTask.deleteTaskByTitle(title)
+    await this.actionTask.deleteTaskByTitle(title)
   }
 
   async checkTaskInOpenSection(taskName: string): Promise<this> {
-    await this.openTask.checkTaskInOpenSection(taskName)
+    await this.actionTask.checkTaskInOpenSection(taskName)
     return this
   }
 
   async checkTaskHasEditAndDeleteButtons(taskName: string): Promise<this> {
-    await this.openTask.checkTaskHasEditAndDeleteButtons(taskName)
+    await this.actionTask.checkTaskHasEditAndDeleteButtons(taskName)
+    return this
+  }
+
+  async clickDeleteButton(taskName: string): Promise<this> {
+    await this.actionTask.clickDeleteButton(taskName)
+    return this
+  }
+
+  async checkDeleteDialogVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogVisible()
+    return this
+  }
+
+  async checkDeleteDialogNotVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogNotVisible()
+    return this
+  }
+
+  async cancelDeleteDialog(): Promise<this> {
+    await this.actionTask.cancelDeleteDialog()
+    return this
+  }
+
+  async confirmDeleteDialog(): Promise<this> {
+    await this.actionTask.confirmDeleteDialog()
+    return this
+  }
+
+  async checkTaskDetailNavigation(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskDetailNavigation(taskName)
+    return this
+  }
+
+  async checkTaskEditNavigation(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskEditNavigation(taskName)
     return this
   }
 
   async checkAllTasksInOpenSectionMarkedIncomplete(): Promise<this> {
-    await this.openTask.checkAllTasksInOpenSectionMarkedIncomplete()
+    await this.actionTask.checkAllTasksInOpenSectionMarkedIncomplete()
     return this
   }
 
@@ -135,11 +171,11 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   private taskCheckbox(taskName: string): Locator {
-    return this.openTask.taskGroup.filter({ hasText: taskName }).getByRole('checkbox')
+    return this.actionTask.taskGroup.filter({ hasText: taskName }).getByRole('checkbox')
   }
 
   private taskTitle(taskName: string): Locator {
-    return this.openTask.taskGroup.filter({ hasText: taskName }).getByRole('heading')
+    return this.actionTask.taskGroup.filter({ hasText: taskName }).getByRole('heading')
   }
 
   private upcomingItem(taskName: string): Locator {
@@ -152,6 +188,11 @@ export class DashboardPage extends SiteBarMenu {
 
   private calcOperatorButton(op: 'Add' | 'Subtract' | 'Multiply' | 'Divide'): Locator {
     return this.page.locator(`[data-wop="${op}"]`)
+  }
+
+  async checkUrl(url: string): Promise<this> {
+    await expect(this.page).toHaveURL(url)
+    return this
   }
 
   async checkNewTaskButtonIsVisible(): Promise<this> {
@@ -189,21 +230,21 @@ export class DashboardPage extends SiteBarMenu {
 
   async checkTaskMarkedComplete(taskName: string): Promise<this> {
     await expect.soft(this.taskCheckbox(taskName)).toBeChecked()
-    await expect.soft(this.taskTitle(taskName)).toHaveClass(this.openTask.completedTaskClass)
+    await expect.soft(this.taskTitle(taskName)).toHaveClass(this.actionTask.completedTaskClass)
     return this
   }
 
   async checkTaskMarkedIncomplete(taskName: string): Promise<this> {
     await expect.soft(this.taskCheckbox(taskName)).not.toBeChecked()
-    await expect.soft(this.taskTitle(taskName)).not.toHaveClass(this.openTask.completedTaskClass)
+    await expect.soft(this.taskTitle(taskName)).not.toHaveClass(this.actionTask.completedTaskClass)
     return this
   }
 
   async checkAllTasksInFinishSectionMarkedComplete(): Promise<this> {
-    const tasks = await this.doneList.locator(this.openTask.taskGroup).all()
+    const tasks = await this.doneList.locator(this.actionTask.taskGroup).all()
     for (const task of tasks) {
       await expect.soft(task.getByRole('checkbox')).toBeChecked()
-      await expect.soft(task.getByRole('heading')).toHaveClass(this.openTask.completedTaskClass)
+      await expect.soft(task.getByRole('heading')).toHaveClass(this.actionTask.completedTaskClass)
     }
     return this
   }
@@ -231,7 +272,7 @@ export class DashboardPage extends SiteBarMenu {
 
   async checkPulseStats(): Promise<this> {
     await this.goto()
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const total = todos.length
     const doneCount = todos.filter((t) => t.completed).length
@@ -247,7 +288,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async countUpcomingTasks(): Promise<number> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const today = dayjs().format('YYYY-MM-DD')
     const weekAhead = dayjs().add(7, 'day').format('YYYY-MM-DD')
@@ -268,7 +309,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async createTaskWithDueDate(title: string, dueDate: string, completed = false): Promise<this> {
-    await this.post(todosEndpoint, { title, due_date: dueDate, completed })
+    await createTodo({ title, due_date: dueDate, completed })
     await this.goto()
     return this
   }

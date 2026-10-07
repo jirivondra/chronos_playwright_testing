@@ -7,7 +7,7 @@ import { test, expect } from '../support/fixture'
 import { dashboardPageData } from '../support/test-data/dashboard_page_data'
 
 test.describe('Test Dashboard page', () => {
-  test.describe('Atomic Tests For Header', () => {
+  test.describe('Atomic Tests For Headline', () => {
     test('Check H1 On Page Dashboard', async ({ dashboardPage }) => {
       await dashboardPage.checkH1(dashboardPageData.h1)
     })
@@ -128,7 +128,7 @@ sub-describe**, nested inside that section's `'Atomic...'`/`'E2E...'`/scenario b
 applies across every kind of block — atomic, E2E, and data-driven scenario groups alike — not
 just one category. The point is purely visual separation and findability once a section grows
 past a handful of tests; a `.forEach()`-generated group of tests counts the same as hand-written
-ones for this threshold. Name each sub-describe after what it groups (e.g. `'Header'`, `'Form
+ones for this threshold. Name each sub-describe after what it groups (e.g. `'Headline'`, `'Form
 Controls'`, `'Stays On Page'`, `'Shows Error Message'`, `'Error Recovery'`) — see
 `login_page.spec.ts` for a worked example with three such splits. A section with 3 or fewer
 tests stays flat; don't split pre-emptively.

@@ -1,16 +1,14 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { Header } from './header'
 import { contactMeInfo } from '../../test-data/general'
 
-export class Footer extends Header {
+export class Footer {
   protected readonly footer: Locator
   private readonly footerHeadingText: string
   readonly footerHeading: Locator
   readonly contactIcons: Locator
 
-  constructor(page: Page, path: string) {
-    super(page, path)
-    this.footer = this.page.locator('footer')
+  constructor(page: Page) {
+    this.footer = page.locator('footer')
     this.footerHeadingText = 'Connect with me'
     this.footerHeading = this.footer.getByText(this.footerHeadingText)
     this.contactIcons = this.contactIconByLabel(contactMeInfo.github.label)

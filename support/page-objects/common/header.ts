@@ -1,43 +1,33 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { BasePage } from './base_page'
+import { ToTopButton } from './to_top_button'
+import { LogoutPage } from '../logout_page'
 
-export class Header extends BasePage {
-  readonly h1: Locator
-  readonly h2: Locator
-  readonly lengthH1: number
+export class Header extends ToTopButton {
+  private readonly logoutButton: Locator
+  private readonly logoutUrlPattern: string
+  private readonly topHeader: Locator
+  private readonly clock: Locator
+  private readonly themeToggle: Locator
 
   constructor(page: Page, path: string) {
     super(page, path)
-    this.h1 = this.page.getByRole('heading', { level: 1 })
-    this.h2 = this.page.getByRole('heading', { level: 2 })
-    this.lengthH1 = 1
+    this.logoutButton = page.getByRole('link', { name: 'logout' })
+    this.logoutUrlPattern = '**/logout.html'
+    this.topHeader = page.getByRole('banner')
+    // Both change independently of theme/page content — mask them so the snapshot
+    // doesn't depend on the exact second the test runs or the resolved system theme.
+    this.clock = page.locator('.mech-clock')
+    this.themeToggle = page.locator('#theme-toggle')
   }
 
-  async checkUrl(url: string): Promise<this> {
-    await expect(this.page).toHaveURL(url)
-    return this
+  async clickLogout(): Promise<LogoutPage> {
+    await this.logoutButton.click()
+    await this.page.waitForURL(this.logoutUrlPattern)
+    return new LogoutPage(this.page)
   }
 
-  async checkH1(text: string): Promise<this> {
-    await expect.soft(this.h1).toBeVisible()
-    await expect.soft(this.h1).toHaveCount(this.lengthH1)
-    await expect.soft(this.h1).toHaveText(text)
-    return this
-  }
-
-  async checkOnlyOneH1(): Promise<this> {
-    await expect(this.h1).toHaveCount(this.lengthH1)
-    return this
-  }
-
-  async checkH2(text: string): Promise<this> {
-    await expect.soft(this.h2).toBeVisible()
-    await expect.soft(this.h2).toHaveText(text)
-    return this
-  }
-
-  async checkFullPageSnapshot(name: string): Promise<this> {
-    await expect(this.page).toHaveScreenshot(name, { fullPage: true })
+  async checkTopHeaderSnapshot(name: string): Promise<this> {
+    await expect(this.topHeader).toHaveScreenshot(name, { mask: [this.clock, this.themeToggle] })
     return this
   }
 }

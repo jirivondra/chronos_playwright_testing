@@ -5,7 +5,6 @@ import { NewTaskPage } from '../page-objects/new_task_page'
 import { OpenTasksPage } from '../page-objects/open_tasks_page'
 import { ClosedTasksPage } from '../page-objects/closed_tasks_page'
 import { LogoutPage } from '../page-objects/logout_page'
-import { Theme as ThemeComponent } from '../page-objects/common/theme'
 import { loginCredentials } from '../test-data/login_page_data'
 import { ThemeValue } from '../types/chronos/theme'
 
@@ -23,9 +22,8 @@ export const authFixtures = base.extend<AuthFixtures>({
   theme: ['light', { option: true }],
 
   loginPage: async ({ page, theme }, use) => {
-    await new ThemeComponent(page).inject(theme)
-
     const loginPage = new LoginPage(page)
+    await loginPage.injectTheme(theme)
 
     await loginPage.goto()
     await use(loginPage)
@@ -40,9 +38,9 @@ export const authFixtures = base.extend<AuthFixtures>({
     await page.context().addInitScript((t) => {
       sessionStorage.setItem('auth', t)
     }, token)
-    await new ThemeComponent(page).inject(theme)
 
     const dashboardPage = new DashboardPage(page)
+    await dashboardPage.injectTheme(theme)
 
     await dashboardPage.goto()
     await use(dashboardPage)
@@ -65,9 +63,8 @@ export const authFixtures = base.extend<AuthFixtures>({
       sessionStorage.setItem('auth', t)
     }, token)
 
-    await new ThemeComponent(page).inject(theme)
-
     const openTasksPage = new OpenTasksPage(page)
+    await openTasksPage.injectTheme(theme)
 
     await openTasksPage.goto()
     await use(openTasksPage)
@@ -82,9 +79,9 @@ export const authFixtures = base.extend<AuthFixtures>({
     await page.context().addInitScript((t) => {
       sessionStorage.setItem('auth', t)
     }, token)
-    await new ThemeComponent(page).inject(theme)
 
     const closedTasksPage = new ClosedTasksPage(page)
+    await closedTasksPage.injectTheme(theme)
 
     await closedTasksPage.goto()
     await use(closedTasksPage)
@@ -92,9 +89,8 @@ export const authFixtures = base.extend<AuthFixtures>({
     await closedTasksPage.clearCache()
   },
   logoutPage: async ({ page, theme }, use) => {
-    await new ThemeComponent(page).inject(theme)
-
     const logoutPage = new LogoutPage(page)
+    await logoutPage.injectTheme(theme)
 
     await logoutPage.goto()
     await use(logoutPage)

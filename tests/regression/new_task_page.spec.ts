@@ -1,4 +1,5 @@
 import { test } from '../../support/fixture'
+import { taskHeadlineH1 } from '../../support/test-data/task_headline'
 
 test.describe('Test New Task Page', () => {
   test.describe('Atomic Tests For Create Task Form', () => {
@@ -6,8 +7,8 @@ test.describe('Test New Task Page', () => {
       await newTaskPage.checkCreateTaskButtonBehave()
     })
 
-    test('Check Only One H1 On Page New Task', async ({ newTaskPage }) => {
-      await newTaskPage.checkOnlyOneH1()
+    test('Check H1 On Page New Task', async ({ newTaskPage }) => {
+      await newTaskPage.checkH1(taskHeadlineH1.newTaskHeadline)
     })
   })
 

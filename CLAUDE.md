@@ -30,30 +30,38 @@ task check
 task fix
 ```
 
+Run `task fix` (or at minimum `task check`) before every push/PR — CI's `prettier-and-lint` job runs `task check` and fails the build on any formatting or lint issue, so catching it locally first avoids a red CI run.
+
 Environment variables are loaded from `.env` via `dotenv` in `playwright.config.ts`. Required vars: `BASE_URL`, `API_BASE_URL`, `API_USERNAME`, `API_PASSWORD`.
 
 ## Architecture
 
 ### Page Object inheritance chain
 
-Two chains exist. `DashboardPage` uses the full chain; `LoginPage` and `LogoutPage` branch off at `ToTopButton`:
+Two chains exist. `DashboardPage`/`NewTaskPage`/`OpenTasksPage`/`ClosedTasksPage` use the full chain; `LoginPage` and `LogoutPage` branch off at `ToTopButton`:
 
 ```
-ApiHelper → BasePage → Header → Footer → ToTopButton → AppBar → SiteBarMenu → OpenTask → DashboardPage
-                                                                              └─ NewTaskPage
-                                                      └─ LoginPage
-                                                      └─ LogoutPage
+BasePage → Headline → ToTopButton → Header → SiteBarMenu → DashboardPage
+                                                             ├─ NewTaskPage
+                                                             ├─ OpenTasksPage
+                                                             └─ ClosedTasksPage
+                                    └─ LoginPage
+                                    └─ LogoutPage
 ```
 
-- **ApiHelper** (`support/page-objects/common/api_helper.ts`) — HTTP client (no Playwright dependency). Holds `path`, `baseApiUrl`, auth headers, and `get/post/put/delete/apiRequest` methods. All page objects can make API calls.
 - **BasePage** — adds `Page` instance. Provides `goto()`, `clearCache()`, `scrollToBottom()`. No assertion or interaction methods.
-- **Header** — first class with assertion methods. Adds public `h1`/`h2` locators, `checkUrl()`, `checkH1()`, `checkH2()`.
-- **Footer** — adds footer heading and contact icon locators and assertions.
+- **Headline** — first class with assertion methods. Adds public `h1`/`h2` locators, `checkH1()`, `checkH2()`.
 - **ToTopButton** — adds back-to-top button locators and assertions.
-- **AppBar** — adds `clickLogout()` which returns `LogoutPage`.
+- **Header** — the real `<header>`/`getByRole('banner')` top bar. Adds `clickLogout()` which returns `LogoutPage`, and `checkTopHeaderSnapshot()`.
 - **SiteBarMenu** — adds sidebar logo, navigation links, and app version assertions.
-- **OpenTask** — adds open task list, expand button, API-based `countOpenTasks()`, and `deleteTaskByTitle()` for teardown.
-- **Concrete pages** (e.g. `DashboardPage`) — define page-specific selectors and expose user-action methods.
+- **Concrete pages** (e.g. `DashboardPage`) — define page-specific selectors and expose user-action methods. `checkUrl()` and (on `LoginPage`/`LogoutPage`) `checkFullPageSnapshot()` live here too, not in the shared chain — each is a single-line wrapper used by a minority of pages, cheaper duplicated than abstracted (see `page-objects.md`'s third worked example).
+
+API access and the task-list/pagination/footer behaviour are **not** in this chain — only some pages need them, so they're composed instead of inherited (see `.claude/docs/page-objects.md`'s "Signal to cut an existing chain"):
+
+- **`support/helper/todo_api.ts`** — plain functions (`getTodos`, `createTodo`, `deleteTodo`), no class. Imported directly by `DashboardPage`, `ClosedTasksPage`, and `ActionTask`.
+- **`ActionTask`** (`support/page-objects/common/action_task.ts`) — open task list, expand button, `countOpenTasks()`, `deleteTaskByTitle()`. Composed by `DashboardPage` and `OpenTasksPage`.
+- **`Footer`** (`support/page-objects/common/footer.ts`) — footer heading and contact icon locators/assertions. The app renders a `<footer>` on `login.html`/`logout.html`, but today only `LoginPage` composes it — `LogoutPage` doesn't test it yet.
+- **`Pagination`** (`support/page-objects/common/pagination.ts`) — composed by `OpenTasksPage` and `ClosedTasksPage`.
 
 ### Fixtures
 

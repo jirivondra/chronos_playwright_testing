@@ -10,7 +10,7 @@ import { themeCases } from '../../support/test-data/visual_testing_data'
 
 test.describe('Test Login page', () => {
   test.describe('Atomic Tests For Login Form', () => {
-    test.describe('Header', () => {
+    test.describe('Headline', () => {
       test('Check H1 On Page Login', async ({ loginPage }) => {
         await loginPage.checkH1(loginPageData.h1)
       })
@@ -42,7 +42,8 @@ test.describe('Test Login page', () => {
       })
 
       test('Check Contact Icons Count', async ({ loginPage }) => {
-        await expect(loginPage.contactIcons).toHaveCount(3)
+        const contactIconsLength = Object.keys(contactMeInfo).length
+        await expect(loginPage.contactIcons).toHaveCount(contactIconsLength)
       })
     })
 

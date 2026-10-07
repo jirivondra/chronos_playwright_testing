@@ -1,16 +1,24 @@
 import { Page } from '@playwright/test'
-import { ApiHelper } from './api_helper'
+import { ThemeValue } from '../../types/chronos/theme'
 
-export class BasePage extends ApiHelper {
+export class BasePage {
   protected page: Page
+  protected path: string
 
   constructor(page: Page, path: string) {
-    super(path)
     this.page = page
+    this.path = path
   }
 
   async goto(params = ''): Promise<this> {
     await this.page.goto(this.path + params)
+    return this
+  }
+
+  async injectTheme(value: ThemeValue): Promise<this> {
+    await this.page.addInitScript((t) => {
+      localStorage.setItem('theme', t)
+    }, value)
     return this
   }
 
