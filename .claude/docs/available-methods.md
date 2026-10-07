@@ -33,12 +33,12 @@ API access is likewise **not** in the chain — see `support/helper/todo_api.ts`
 
 Adds browser `page` instance and navigation. No assertion or interaction methods — those belong in subclasses.
 
-| Method           | Signature                           | Description                                                 |
-| ---------------- | ----------------------------------- | ----------------------------------------------------------- |
-| `goto`           | `(params?: string) → Promise<this>` | Navigates to the page's path (optionally with query params) |
+| Method           | Signature                             | Description                                                                                                                                           |
+| ---------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `goto`           | `(params?: string) → Promise<this>`   | Navigates to the page's path (optionally with query params)                                                                                           |
 | `injectTheme`    | `(value: ThemeValue) → Promise<this>` | Sets `localStorage.theme` via `page.addInitScript`, before the page's own scripts run — called by every fixture in `auth-fixtures.ts` before `goto()` |
-| `clearCache`     | `() → Promise<this>`                | Clears cookies, localStorage, sessionStorage                |
-| `scrollToBottom` | `() → Promise<this>`                | Scrolls to bottom of page                                   |
+| `clearCache`     | `() → Promise<this>`                  | Clears cookies, localStorage, sessionStorage                                                                                                          |
+| `scrollToBottom` | `() → Promise<this>`                  | Scrolls to bottom of page                                                                                                                             |
 
 `injectTheme` lives here rather than in a composed component because every single fixture needs it (`loginPage`, `dashboardPage`, `openTasksPage`, `closedTasksPage`, `logoutPage` — no exceptions), unlike `ActionTask`/`Footer`/`Pagination`, which only some pages need. It used to be an identical `page.addInitScript(...)` block duplicated in every fixture — that duplication is what let the `openTasksPage` fixture silently typo its auth-token storage key once, undetected, since every fixture had its own copy to get wrong independently.
 
@@ -90,7 +90,7 @@ The real `<header>`/`getByRole('banner')` top bar (used to be called `AppBar`). 
 | `clickLogout`            | `() → Promise<LogoutPage>`       | Clicks logout link — returns `LogoutPage` (chain ends)                                                                                                                                          |
 | `checkTopHeaderSnapshot` | `(name: string) → Promise<this>` | Scoped screenshot of the top `<header>` (`getByRole('banner')`), masking `.mech-clock` (live, updates every second) and `#theme-toggle` (its icon reflects the current theme/system preference) |
 
-The app also has a real interactive theme-toggle widget (`#theme-toggle`: trigger button + panel with light/dark/system buttons identified by `data-theme-choice`) — currently only referenced above as a mask target. It exists on exactly the same pages that have `Header` at all (confirmed against the real markup: present on every page with a `<header>`, absent on `login.html`/`logout.html`), with no asymmetry — so unlike `ActionTask`/`Footer`/`Pagination` (which exist because only *some* pages need them), this one has no "signal to cut" and belongs directly on `Header` once a test needs to interact with it, not as a separate composed class. (The pre-load `injectTheme` on `BasePage` is a different concern — it sets the *initial* theme before any script runs, including on `LoginPage`/`LogoutPage`, which have no `Header` at all.)
+The app also has a real interactive theme-toggle widget (`#theme-toggle`: trigger button + panel with light/dark/system buttons identified by `data-theme-choice`) — currently only referenced above as a mask target. It exists on exactly the same pages that have `Header` at all (confirmed against the real markup: present on every page with a `<header>`, absent on `login.html`/`logout.html`), with no asymmetry — so unlike `ActionTask`/`Footer`/`Pagination` (which exist because only _some_ pages need them), this one has no "signal to cut" and belongs directly on `Header` once a test needs to interact with it, not as a separate composed class. (The pre-load `injectTheme` on `BasePage` is a different concern — it sets the _initial_ theme before any script runs, including on `LoginPage`/`LogoutPage`, which have no `Header` at all.)
 
 ---
 
@@ -212,11 +212,11 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Public locators:**
 
-| Locator                | Type      | Description                                  |
-| ---------------------- | --------- | -------------------------------------------- |
-| `newTaskButton`        | `Locator` | "New Task" button (`#new-task-btn`)          |
-| `pulseHeading`         | `Locator` | "Today's Pulse" heading                      |
-| `upcomingHeading`      | `Locator` | "Upcoming" heading                           |
+| Locator                | Type      | Description                                    |
+| ---------------------- | --------- | ---------------------------------------------- |
+| `newTaskButton`        | `Locator` | "New Task" button (`#new-task-btn`)            |
+| `pulseHeading`         | `Locator` | "Today's Pulse" heading                        |
+| `upcomingHeading`      | `Locator` | "Upcoming" heading                             |
 | `openListEmptyMessage` | `Locator` | Delegated from `ActionTask` — see that section |
 | `expandOpenListButton` | `Locator` | Delegated from `ActionTask` — see that section |
 
@@ -297,8 +297,8 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Public locators:**
 
-| Locator                | Type      | Description                                  |
-| ---------------------- | --------- | -------------------------------------------- |
+| Locator                | Type      | Description                                    |
+| ---------------------- | --------- | ---------------------------------------------- |
 | `openListEmptyMessage` | `Locator` | Delegated from `ActionTask` — see that section |
 | `expandOpenListButton` | `Locator` | Delegated from `ActionTask` — see that section |
 
