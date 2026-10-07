@@ -30,6 +30,8 @@ task check
 task fix
 ```
 
+Run `task fix` (or at minimum `task check`) before every push/PR — CI's `prettier-and-lint` job runs `task check` and fails the build on any formatting or lint issue, so catching it locally first avoids a red CI run.
+
 Environment variables are loaded from `.env` via `dotenv` in `playwright.config.ts`. Required vars: `BASE_URL`, `API_BASE_URL`, `API_USERNAME`, `API_PASSWORD`.
 
 ## Architecture
