@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test'
+import { ThemeValue } from '../../types/chronos/theme'
 
 export class BasePage {
   protected page: Page
@@ -11,6 +12,13 @@ export class BasePage {
 
   async goto(params = ''): Promise<this> {
     await this.page.goto(this.path + params)
+    return this
+  }
+
+  async injectTheme(value: ThemeValue): Promise<this> {
+    await this.page.addInitScript((t) => {
+      localStorage.setItem('theme', t)
+    }, value)
     return this
   }
 
