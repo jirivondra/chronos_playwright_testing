@@ -21,11 +21,11 @@ BasePage → Headline → ToTopButton → LoginPage
 `DashboardPage`, `NewTaskPage`, `OpenTasksPage`, and `ClosedTasksPage` all extend `SiteBarMenu` directly — every method from `BasePage` through `SiteBarMenu` is available on all four.
 `LoginPage` and `LogoutPage` skip `Header` and `SiteBarMenu`.
 
-`OpenTask` and `Footer` are **not** in this chain — both are composed components (see their own sections below). `DashboardPage` and `OpenTasksPage` each hold a private `OpenTask` instance and expose its methods through thin delegation wrappers; `NewTaskPage` and `ClosedTasksPage` don't need it and don't compose it. `LoginPage` holds a private `Footer` instance the same way — the app renders `<footer>` only on `login.html`/`logout.html`, but only `login_page.spec.ts` actually tests it today, so `LogoutPage` doesn't compose `Footer` yet (add it there the same way once a test needs it). This is the same composition pattern as `Pagination`: each of these is only relevant to the pages that actually exercise that piece of UI — unlike `Headline`/`ToTopButton`/`Header`/`SiteBarMenu`, which every page needs (or, for `Header`/`SiteBarMenu`, at least the 4 main ones).
+`ActionTask` and `Footer` are **not** in this chain — both are composed components (see their own sections below). `DashboardPage` and `OpenTasksPage` each hold a private `ActionTask` instance and expose its methods through thin delegation wrappers; `NewTaskPage` and `ClosedTasksPage` don't need it and don't compose it. `LoginPage` holds a private `Footer` instance the same way — the app renders `<footer>` only on `login.html`/`logout.html`, but only `login_page.spec.ts` actually tests it today, so `LogoutPage` doesn't compose `Footer` yet (add it there the same way once a test needs it). This is the same composition pattern as `Pagination`: each of these is only relevant to the pages that actually exercise that piece of UI — unlike `Headline`/`ToTopButton`/`Header`/`SiteBarMenu`, which every page needs (or, for `Header`/`SiteBarMenu`, at least the 4 main ones).
 
-API access is likewise **not** in the chain — see `support/helper/todo_api.ts` and `api-helper.md` below. `DashboardPage`, `ClosedTasksPage`, and `OpenTask` import its functions directly; `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never call it.
+API access is likewise **not** in the chain — see `support/helper/todo_api.ts` and `api-helper.md` below. `DashboardPage`, `ClosedTasksPage`, and `ActionTask` import its functions directly; `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never call it.
 
-`checkUrl()` and `checkFullPageSnapshot()` are **not** in the chain either, for a different reason than `OpenTask`/API access: both are single-line wrappers (`expect(this.page).toHaveURL(...)`, `expect(this.page).toHaveScreenshot(...)`) used by only some pages (`checkUrl`: `DashboardPage`, `NewTaskPage`, `LoginPage`, `LogoutPage`; `checkFullPageSnapshot`: `LoginPage`, `LogoutPage` only) — too thin to be worth composing, so each is defined directly on the concrete page object that needs it. See `page-objects.md`'s third worked example.
+`checkUrl()` and `checkFullPageSnapshot()` are **not** in the chain either, for a different reason than `ActionTask`/API access: both are single-line wrappers (`expect(this.page).toHaveURL(...)`, `expect(this.page).toHaveScreenshot(...)`) used by only some pages (`checkUrl`: `DashboardPage`, `NewTaskPage`, `LoginPage`, `LogoutPage`; `checkFullPageSnapshot`: `LoginPage`, `LogoutPage` only) — too thin to be worth composing, so each is defined directly on the concrete page object that needs it. See `page-objects.md`'s third worked example.
 
 ---
 
@@ -34,10 +34,13 @@ API access is likewise **not** in the chain — see `support/helper/todo_api.ts`
 Adds browser `page` instance and navigation. No assertion or interaction methods — those belong in subclasses.
 
 | Method           | Signature                           | Description                                                 |
-| ---------------- | ------------------------------------ | ----------------------------------------------------------- |
+| ---------------- | ----------------------------------- | ----------------------------------------------------------- |
 | `goto`           | `(params?: string) → Promise<this>` | Navigates to the page's path (optionally with query params) |
+| `injectTheme`    | `(value: ThemeValue) → Promise<this>` | Sets `localStorage.theme` via `page.addInitScript`, before the page's own scripts run — called by every fixture in `auth-fixtures.ts` before `goto()` |
 | `clearCache`     | `() → Promise<this>`                | Clears cookies, localStorage, sessionStorage                |
 | `scrollToBottom` | `() → Promise<this>`                | Scrolls to bottom of page                                   |
+
+`injectTheme` lives here rather than in a composed component because every single fixture needs it (`loginPage`, `dashboardPage`, `openTasksPage`, `closedTasksPage`, `logoutPage` — no exceptions), unlike `ActionTask`/`Footer`/`Pagination`, which only some pages need. It used to be an identical `page.addInitScript(...)` block duplicated in every fixture — that duplication is what let the `openTasksPage` fixture silently typo its auth-token storage key once, undetected, since every fixture had its own copy to get wrong independently.
 
 ---
 
@@ -87,6 +90,8 @@ The real `<header>`/`getByRole('banner')` top bar (used to be called `AppBar`). 
 | `clickLogout`            | `() → Promise<LogoutPage>`       | Clicks logout link — returns `LogoutPage` (chain ends)                                                                                                                                          |
 | `checkTopHeaderSnapshot` | `(name: string) → Promise<this>` | Scoped screenshot of the top `<header>` (`getByRole('banner')`), masking `.mech-clock` (live, updates every second) and `#theme-toggle` (its icon reflects the current theme/system preference) |
 
+The app also has a real interactive theme-toggle widget (`#theme-toggle`: trigger button + panel with light/dark/system buttons identified by `data-theme-choice`) — currently only referenced above as a mask target. It exists on exactly the same pages that have `Header` at all (confirmed against the real markup: present on every page with a `<header>`, absent on `login.html`/`logout.html`), with no asymmetry — so unlike `ActionTask`/`Footer`/`Pagination` (which exist because only *some* pages need them), this one has no "signal to cut" and belongs directly on `Header` once a test needs to interact with it, not as a separate composed class. (The pre-load `injectTheme` on `BasePage` is a different concern — it sets the *initial* theme before any script runs, including on `LoginPage`/`LogoutPage`, which have no `Header` at all.)
+
 ---
 
 ## SiteBarMenu
@@ -114,9 +119,9 @@ The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a pag
 
 ---
 
-## OpenTask
+## ActionTask
 
-**Not part of the inheritance chain** — a standalone component (`support/page-objects/common/open_task.ts`), constructed with only `(page: Page)`, not extending anything. Adds open task list, expand button, and API-based task utilities (via `getTodos`/`deleteTodo` imported from `support/helper/todo_api.ts`). Used via **composition**: `DashboardPage` and `OpenTasksPage` each hold `private readonly openTask: OpenTask` and re-expose its methods through delegation wrappers that return their own `this` — see `page-objects.md` for the pattern.
+**Not part of the inheritance chain** — a standalone component (`support/page-objects/common/action_task.ts`), constructed with only `(page: Page)`, not extending anything. Adds open task list, expand button, and API-based task utilities (via `getTodos`/`deleteTodo` imported from `support/helper/todo_api.ts`). Used via **composition**: `DashboardPage` and `OpenTasksPage` each hold `private readonly actionTask: ActionTask` and re-expose its methods through delegation wrappers that return their own `this` — see `page-objects.md` for the pattern.
 
 **Public locators:**
 
@@ -164,21 +169,9 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 
 ---
 
-## Theme
-
-**Not part of either inheritance chain** — a standalone component (`support/page-objects/common/theme.ts`), constructed with only `(page: Page)`. Used exclusively by `support/fixture/auth-fixtures.ts` to replace what used to be an identical `page.addInitScript(...)` block duplicated in every fixture (`loginPage`, `dashboardPage`, `openTasksPage`, `closedTasksPage`, `logoutPage`) — that duplication is what let the `openTasksPage` fixture silently typo its auth-token storage key once, undetected, since every fixture had its own copy to get wrong independently.
-
-| Method   | Signature                                  | Description                                                                           |
-| -------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `inject` | `(value: 'light'\|'dark') → Promise<void>` | Sets `localStorage.theme` via `page.addInitScript`, before the page's own scripts run |
-
-The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigger + panel + light/dark/system buttons — currently only referenced as a mask target in `Header.checkTopHeaderSnapshot`). `Theme` is deliberately minimal for now — no locators or click methods for that widget — until a test actually needs to interact with it; add them here, not as a separate class, when that happens.
-
----
-
 ## todo_api (API helper)
 
-**Not a class, not in any inheritance chain or composition** — plain exported functions in `support/helper/todo_api.ts`. No Playwright dependency. Imported directly by whichever page object needs them: `DashboardPage`, `ClosedTasksPage`, and the composed `OpenTask`. `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never import it. See `api-helper.md` for the full writeup.
+**Not a class, not in any inheritance chain or composition** — plain exported functions in `support/helper/todo_api.ts`. No Playwright dependency. Imported directly by whichever page object needs them: `DashboardPage`, `ClosedTasksPage`, and the composed `ActionTask`. `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never import it. See `api-helper.md` for the full writeup.
 
 | Function     | Signature                                                                               | Description          |
 | ------------ | --------------------------------------------------------------------------------------- | -------------------- |
@@ -215,7 +208,7 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Fixture:** `dashboardPage` (authenticated), `unAuthDashboardPage` (no auth)
 **Path:** `/dashboard.html`
-**Extends:** `SiteBarMenu` — has all methods from `BasePage` through `SiteBarMenu`. **Composes:** `OpenTask` (see that section above) — `DashboardPage` re-exposes all of its methods and its two public locators directly, so calling them looks identical to inheritance.
+**Extends:** `SiteBarMenu` — has all methods from `BasePage` through `SiteBarMenu`. **Composes:** `ActionTask` (see that section above) — `DashboardPage` re-exposes all of its methods and its two public locators directly, so calling them looks identical to inheritance.
 
 **Public locators:**
 
@@ -224,8 +217,8 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 | `newTaskButton`        | `Locator` | "New Task" button (`#new-task-btn`)          |
 | `pulseHeading`         | `Locator` | "Today's Pulse" heading                      |
 | `upcomingHeading`      | `Locator` | "Upcoming" heading                           |
-| `openListEmptyMessage` | `Locator` | Delegated from `OpenTask` — see that section |
-| `expandOpenListButton` | `Locator` | Delegated from `OpenTask` — see that section |
+| `openListEmptyMessage` | `Locator` | Delegated from `ActionTask` — see that section |
+| `expandOpenListButton` | `Locator` | Delegated from `ActionTask` — see that section |
 
 **Own methods:**
 
@@ -275,7 +268,7 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Fixture:** `newTaskPage` (authenticated, depends on `dashboardPage`), `unAuthNewTaskPage` (no auth)
 **Path:** `/edit-task.html?from=dashboard`
-**Extends:** `SiteBarMenu` — does NOT have `OpenTask` methods (no task list on this page).
+**Extends:** `SiteBarMenu` — does NOT have `ActionTask` methods (no task list on this page).
 
 **Public properties:**
 
@@ -300,16 +293,16 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Fixture:** `openTasksPage` (authenticated)
 **Path:** `/open-tasks.html`
-**Extends:** `SiteBarMenu`. **Composes:** `OpenTask` and `Pagination` — re-exposes every method of both through delegation wrappers, same as `DashboardPage` does for `OpenTask`.
+**Extends:** `SiteBarMenu`. **Composes:** `ActionTask` and `Pagination` — re-exposes every method of both through delegation wrappers, same as `DashboardPage` does for `ActionTask`.
 
 **Public locators:**
 
 | Locator                | Type      | Description                                  |
 | ---------------------- | --------- | -------------------------------------------- |
-| `openListEmptyMessage` | `Locator` | Delegated from `OpenTask` — see that section |
-| `expandOpenListButton` | `Locator` | Delegated from `OpenTask` — see that section |
+| `openListEmptyMessage` | `Locator` | Delegated from `ActionTask` — see that section |
+| `expandOpenListButton` | `Locator` | Delegated from `ActionTask` — see that section |
 
-**Methods:** all `OpenTask` methods (see that section) plus all `Pagination` methods (see that section) — both delegated, nothing else of its own yet.
+**Methods:** all `ActionTask` methods (see that section) plus all `Pagination` methods (see that section) — both delegated, nothing else of its own yet.
 
 ---
 
@@ -317,7 +310,7 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 
 **Fixture:** `closedTasksPage` (authenticated)
 **Path:** `/finished-tasks.html`
-**Extends:** `SiteBarMenu` (not `OpenTask` — a closed-tasks list is a different domain: tasks here are completed, not open). **Composes:** `Pagination` — re-exposes its methods through delegation wrappers.
+**Extends:** `SiteBarMenu` (not `ActionTask` — a closed-tasks list is a different domain: tasks here are completed, not open). **Composes:** `Pagination` — re-exposes its methods through delegation wrappers.
 
 **Own methods:**
 
@@ -402,7 +395,7 @@ All three return the native `fetch` `Response`; auth header and `Content-Type` a
 | `unAuthDashboardPage` | noauth-fixtures | `DashboardPage`   | none                    | Redirect tests — no token                                      |
 | `unAuthNewTaskPage`   | noauth-fixtures | `NewTaskPage`     | none                    | Redirect tests — no token                                      |
 
-Every fixture in `auth-fixtures.ts` also injects `theme` into `localStorage` via `new Theme(page).inject(theme)` (see the `Theme` section above) — omitted from the table above since it's the same for all of them, not a per-fixture detail.
+Every fixture in `auth-fixtures.ts` also calls the page object's own `injectTheme(theme)` (inherited from `BasePage`, see that section above) before `goto()` — omitted from the table above since it's the same for all of them, not a per-fixture detail.
 
 ---
 

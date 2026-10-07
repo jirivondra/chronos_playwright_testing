@@ -2,6 +2,7 @@ import { Page, Locator, expect } from '@playwright/test'
 import { SiteBarMenu } from './common/site_bar_menu'
 import { Pagination } from './common/pagination'
 import { getTodos } from '../helper/todo_api'
+import { todosEndpoint } from '../constants/endpoints'
 import { Todo } from '../types/chronos/todo'
 
 export class ClosedTasksPage extends SiteBarMenu {
@@ -45,7 +46,11 @@ export class ClosedTasksPage extends SiteBarMenu {
   }
 
   async selectSortOrder(value: string): Promise<this> {
+    const response = this.page.waitForResponse(
+      (res) => res.url().includes(todosEndpoint) && res.ok()
+    )
     await this.sortOrderSelect.selectOption(value)
+    await response
     return this
   }
 
@@ -64,7 +69,11 @@ export class ClosedTasksPage extends SiteBarMenu {
   }
 
   async selectPageSize(value: number): Promise<this> {
+    const response = this.page.waitForResponse(
+      (res) => res.url().includes(todosEndpoint) && res.ok()
+    )
     await this.pageSizeSelect.selectOption(String(value))
+    await response
     return this
   }
 

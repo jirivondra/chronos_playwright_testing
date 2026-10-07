@@ -56,8 +56,8 @@ BasePage → Headline → ToTopButton → Header → SiteBarMenu → DashboardPa
 
 API access and the task-list/pagination/footer behaviour are **not** in this chain — only some pages need them, so they're composed instead of inherited (see `.claude/docs/page-objects.md`'s "Signal to cut an existing chain"):
 
-- **`support/helper/todo_api.ts`** — plain functions (`getTodos`, `createTodo`, `deleteTodo`), no class. Imported directly by `DashboardPage`, `ClosedTasksPage`, and `OpenTask`.
-- **`OpenTask`** (`support/page-objects/common/open_task.ts`) — open task list, expand button, `countOpenTasks()`, `deleteTaskByTitle()`. Composed by `DashboardPage` and `OpenTasksPage`.
+- **`support/helper/todo_api.ts`** — plain functions (`getTodos`, `createTodo`, `deleteTodo`), no class. Imported directly by `DashboardPage`, `ClosedTasksPage`, and `ActionTask`.
+- **`ActionTask`** (`support/page-objects/common/action_task.ts`) — open task list, expand button, `countOpenTasks()`, `deleteTaskByTitle()`. Composed by `DashboardPage` and `OpenTasksPage`.
 - **`Footer`** (`support/page-objects/common/footer.ts`) — footer heading and contact icon locators/assertions. The app renders a `<footer>` on `login.html`/`logout.html`, but today only `LoginPage` composes it — `LogoutPage` doesn't test it yet.
 - **`Pagination`** (`support/page-objects/common/pagination.ts`) — composed by `OpenTasksPage` and `ClosedTasksPage`.
 
