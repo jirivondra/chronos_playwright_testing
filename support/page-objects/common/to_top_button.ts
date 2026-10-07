@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { Footer } from './footer'
+import { Headline } from './headline'
 
-export class ToTopButton extends Footer {
+export class ToTopButton extends Headline {
   private readonly toTopButton: Locator
 
   constructor(page: Page, path: string) {

@@ -1,10 +1,9 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { ApiHelper } from './api_helper'
+import { getTodos, deleteTodo } from '../../helper/todo_api'
 import { dashboardPageData } from '../../test-data/dashboard_page_data'
 import { Todo } from '../../types/chronos/todo'
-import { todosEndpoint } from '../../constants/endpoints'
 
-export class OpenTask extends ApiHelper {
+export class OpenTask {
   private readonly openList: Locator
   readonly taskGroup: Locator
   readonly openListEmptyMessage: Locator
@@ -15,7 +14,6 @@ export class OpenTask extends ApiHelper {
   readonly completedTaskClass: RegExp
 
   constructor(page: Page) {
-    super('')
     this.openList = page.locator('#open-list')
     this.taskGroup = page.locator('.group')
     this.openListEmptyMessageText = dashboardPageData.emptyMessage
@@ -48,7 +46,7 @@ export class OpenTask extends ApiHelper {
   }
 
   async countOpenTasks(): Promise<number> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     return todos.filter((t) => !t.completed).length
   }
@@ -70,10 +68,10 @@ export class OpenTask extends ApiHelper {
   }
 
   async deleteTaskByTitle(title: string): Promise<void> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const ids = todos.filter((t) => t.title === title).map((t) => t.id)
-    await Promise.all(ids.map((id) => this.delete(`${todosEndpoint}/${id}`)))
+    await Promise.all(ids.map((id) => deleteTodo(id)))
   }
 
   async checkTaskInOpenSection(taskName: string): Promise<this> {

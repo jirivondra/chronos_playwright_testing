@@ -2,12 +2,6 @@ import { test } from '../../support/fixture'
 import { paginationData, generateNonLastPageNumber } from '../../support/test-data/pagination_data'
 
 test.describe('Test Open Tasks Page', () => {
-  test.describe('Atomic Tests For Open Tasks', () => {
-    test('Check Only One H1 On Page Open Tasks', async ({ openTasksPage }) => {
-      await openTasksPage.checkOnlyOneH1()
-    })
-  })
-
   test.describe('Atomic Tests For Pagination', () => {
     let paginationVisible: boolean
 

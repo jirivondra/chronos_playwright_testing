@@ -1,12 +1,12 @@
 import { Page } from '@playwright/test'
-import { ApiHelper } from './api_helper'
 
-export class BasePage extends ApiHelper {
+export class BasePage {
   protected page: Page
+  protected path: string
 
   constructor(page: Page, path: string) {
-    super(path)
     this.page = page
+    this.path = path
   }
 
   async goto(params = ''): Promise<this> {

@@ -4,6 +4,7 @@ import { SiteBarMenu } from './common/site_bar_menu'
 import { OpenTask } from './common/open_task'
 import { HttpMethod } from '../constants/http_method'
 import { todosEndpoint } from '../constants/endpoints'
+import { getTodos, createTodo } from '../helper/todo_api'
 import { NewTaskPage } from './new_task_page'
 import { dashboardPageData } from '../test-data/dashboard_page_data'
 import { Todo } from '../types/chronos/todo'
@@ -154,6 +155,11 @@ export class DashboardPage extends SiteBarMenu {
     return this.page.locator(`[data-wop="${op}"]`)
   }
 
+  async checkUrl(url: string): Promise<this> {
+    await expect(this.page).toHaveURL(url)
+    return this
+  }
+
   async checkNewTaskButtonIsVisible(): Promise<this> {
     await expect(this.newTaskButton).toBeVisible()
     return this
@@ -231,7 +237,7 @@ export class DashboardPage extends SiteBarMenu {
 
   async checkPulseStats(): Promise<this> {
     await this.goto()
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const total = todos.length
     const doneCount = todos.filter((t) => t.completed).length
@@ -247,7 +253,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async countUpcomingTasks(): Promise<number> {
-    const response = await this.get(todosEndpoint)
+    const response = await getTodos()
     const todos = (await response.json()) as Todo[]
     const today = dayjs().format('YYYY-MM-DD')
     const weekAhead = dayjs().add(7, 'day').format('YYYY-MM-DD')
@@ -268,7 +274,7 @@ export class DashboardPage extends SiteBarMenu {
   }
 
   async createTaskWithDueDate(title: string, dueDate: string, completed = false): Promise<this> {
-    await this.post(todosEndpoint, { title, due_date: dueDate, completed })
+    await createTodo({ title, due_date: dueDate, completed })
     await this.goto()
     return this
   }

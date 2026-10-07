@@ -7,33 +7,25 @@ Complete reference of all page objects, their public locators, and public method
 Two chains exist in this project:
 
 ```
-ApiHelper → BasePage → Header → Footer → ToTopButton → AppBar → SiteBarMenu → DashboardPage
-                                                                              ├─ NewTaskPage
-                                                                              ├─ OpenTasksPage
-                                                                              └─ ClosedTasksPage
+BasePage → Headline → ToTopButton → Header → SiteBarMenu → DashboardPage
+                                                             ├─ NewTaskPage
+                                                             ├─ OpenTasksPage
+                                                             └─ ClosedTasksPage
 
-ApiHelper → BasePage → Header → Footer → ToTopButton → LoginPage
-                                                      └─ LogoutPage
+BasePage → Headline → ToTopButton → LoginPage
+                                    └─ LogoutPage
 ```
 
-`DashboardPage`, `NewTaskPage`, `OpenTasksPage`, and `ClosedTasksPage` all extend `SiteBarMenu` directly — every method from `ApiHelper` through `SiteBarMenu` is available on all four.
-`LoginPage` and `LogoutPage` skip `AppBar` and `SiteBarMenu`.
+`Headline` and `Header` are not synonyms: `Headline` holds the `h1`/`h2` heading locators and checks (used to be called `Header`, renamed because it had nothing to do with the HTML `<header>` element). `Header` is the real `<header>`/`getByRole('banner')` top bar (used to be called `AppBar`, renamed to match what it actually wraps).
 
-`OpenTask` is **not** in this chain — it's a composed component (see its own section below). `DashboardPage` and `OpenTasksPage` each hold a private `OpenTask` instance and expose its methods through thin delegation wrappers; `NewTaskPage` and `ClosedTasksPage` don't need it and don't compose it. This is the same composition pattern as `Pagination`, applied because `OpenTask`'s task-list behaviour is only relevant to pages that actually render a task list — unlike `Header`/`Footer`/`ToTopButton`/`AppBar`/`SiteBarMenu`, which every page needs.
+`DashboardPage`, `NewTaskPage`, `OpenTasksPage`, and `ClosedTasksPage` all extend `SiteBarMenu` directly — every method from `BasePage` through `SiteBarMenu` is available on all four.
+`LoginPage` and `LogoutPage` skip `Header` and `SiteBarMenu`.
 
----
+`OpenTask` and `Footer` are **not** in this chain — both are composed components (see their own sections below). `DashboardPage` and `OpenTasksPage` each hold a private `OpenTask` instance and expose its methods through thin delegation wrappers; `NewTaskPage` and `ClosedTasksPage` don't need it and don't compose it. `LoginPage` holds a private `Footer` instance the same way — the app renders `<footer>` only on `login.html`/`logout.html`, but only `login_page.spec.ts` actually tests it today, so `LogoutPage` doesn't compose `Footer` yet (add it there the same way once a test needs it). This is the same composition pattern as `Pagination`: each of these is only relevant to the pages that actually exercise that piece of UI — unlike `Headline`/`ToTopButton`/`Header`/`SiteBarMenu`, which every page needs (or, for `Header`/`SiteBarMenu`, at least the 4 main ones).
 
-## ApiHelper
+API access is likewise **not** in the chain — see `support/helper/todo_api.ts` and `api-helper.md` below. `DashboardPage`, `ClosedTasksPage`, and `OpenTask` import its functions directly; `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never call it.
 
-Base HTTP client. No Playwright dependency.
-
-| Method       | Signature                                                                   | Description                                                                   |
-| ------------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `apiRequest` | `(method: HttpMethod, endpoint: string, body?: object) → Promise<Response>` | Public generic dispatcher — call from tests when no page object method exists |
-
-`get`, `post`, `put`, `delete` are `protected` — only callable inside page object methods, not from tests.
-
-`HttpMethod` is an exported enum (`Get`, `Post`, `Put`, `Delete`) — pass `HttpMethod.Get` etc., never a raw method string.
+`checkUrl()` and `checkFullPageSnapshot()` are **not** in the chain either, for a different reason than `OpenTask`/API access: both are single-line wrappers (`expect(this.page).toHaveURL(...)`, `expect(this.page).toHaveScreenshot(...)`) used by only some pages (`checkUrl`: `DashboardPage`, `NewTaskPage`, `LoginPage`, `LogoutPage`; `checkFullPageSnapshot`: `LoginPage`, `LogoutPage` only) — too thin to be worth composing, so each is defined directly on the concrete page object that needs it. See `page-objects.md`'s third worked example.
 
 ---
 
@@ -42,16 +34,16 @@ Base HTTP client. No Playwright dependency.
 Adds browser `page` instance and navigation. No assertion or interaction methods — those belong in subclasses.
 
 | Method           | Signature                           | Description                                                 |
-| ---------------- | ----------------------------------- | ----------------------------------------------------------- |
+| ---------------- | ------------------------------------ | ----------------------------------------------------------- |
 | `goto`           | `(params?: string) → Promise<this>` | Navigates to the page's path (optionally with query params) |
 | `clearCache`     | `() → Promise<this>`                | Clears cookies, localStorage, sessionStorage                |
 | `scrollToBottom` | `() → Promise<this>`                | Scrolls to bottom of page                                   |
 
 ---
 
-## Header
+## Headline
 
-First class in the chain that adds assertion methods. Adds `h1`/`h2` locators and URL check.
+First class in the chain that adds assertion methods. Adds `h1`/`h2` locators and heading checks — nothing to do with the HTML `<header>` element (see `Header` below for that).
 
 **Public locators** (usable directly with `expect()` in tests):
 
@@ -62,33 +54,10 @@ First class in the chain that adds assertion methods. Adds `h1`/`h2` locators an
 
 **Methods:**
 
-| Method           | Signature                        | Description                                                                             |
-| ---------------- | -------------------------------- | --------------------------------------------------------------------------------------- |
-| `checkUrl`       | `(url: string) → Promise<this>`  | Asserts current URL equals `url`                                                        |
-| `checkH1`        | `(text: string) → Promise<this>` | Soft-asserts h1 is visible, count=1, has text                                           |
-| `checkH2`        | `(text: string) → Promise<this>` | Soft-asserts h2 is visible and has text                                                 |
-| `checkOnlyOneH1` | `() → Promise<this>`             | Generic, page-agnostic structural check: asserts the whole page has exactly one `<h1>`. |
-
----
-
-## Footer
-
-Adds footer heading and contact icon locators.
-
-**Public locators:**
-
-| Locator         | Type      | Description                          |
-| --------------- | --------- | ------------------------------------ |
-| `footerHeading` | `Locator` | "Connect with me" text in footer     |
-| `contactIcons`  | `Locator` | All `<a aria-label>` links in footer |
-
-**Methods:**
-
-| Method                 | Signature                         | Description                                                    |
-| ---------------------- | --------------------------------- | -------------------------------------------------------------- |
-| `contactIconByLabel`   | `(label: string) → Locator`       | Returns the contact icon link matching a specific `aria-label` |
-| `checkHeadingVisible`  | `() → Promise<this>`              | Asserts footer heading is visible                              |
-| `checkContactIconLink` | `(label: string) → Promise<this>` | Asserts the contact icon with given `aria-label` is visible    |
+| Method    | Signature                        | Description                                   |
+| --------- | -------------------------------- | --------------------------------------------- |
+| `checkH1` | `(text: string) → Promise<this>` | Soft-asserts h1 is visible, count=1, has text |
+| `checkH2` | `(text: string) → Promise<this>` | Soft-asserts h2 is visible and has text       |
 
 ---
 
@@ -109,9 +78,9 @@ toggles the `hidden` attribute once the fade-out finishes.
 
 ---
 
-## AppBar
+## Header
 
-Adds top navigation bar with logout action.
+The real `<header>`/`getByRole('banner')` top bar (used to be called `AppBar`). Adds top navigation bar with logout action.
 
 | Method                   | Signature                        | Description                                                                                                                                                                                     |
 | ------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -124,7 +93,7 @@ Adds top navigation bar with logout action.
 
 Adds sidebar menu with logo, navigation links, and app version. The sidebar itself is `page.getByRole('complementary')` — the `<aside id="sidebar">` element carries that role implicitly, no CSS/ID fallback needed. All logo/nav locators are scoped to it — necessary because `OpenTasksPage`/`ClosedTasksPage` render a breadcrumb with its own "Dashboard"-named link, which would otherwise collide with `navDashboardLink` if left unscoped to the whole page.
 
-The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a page's own content heading — the app fixed this by demoting the logo to a `<p>` (not by changing the page's own heading), so `logoTitle` now matches it by text instead of by heading role. See `Header.checkOnlyOneH1`.
+The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a page's own content heading — the app fixed this by demoting the logo to a `<p>` (not by changing the page's own heading), so `logoTitle` now matches it by text instead of by heading role. `Headline.checkH1` would otherwise fail its `toHaveCount(1)` assertion.
 
 | Method                          | Signature                        | Description                                                                                                                                                                                                                                                                                      |
 | ------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -147,7 +116,7 @@ The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a pag
 
 ## OpenTask
 
-**Not part of the inheritance chain** — a standalone component (`support/page-objects/common/open_task.ts`), constructed with only `(page: Page)`, extending only `ApiHelper` (for `get`/`delete`), not `BasePage`. Adds open task list, expand button, and API-based task utilities. Used via **composition**: `DashboardPage` and `OpenTasksPage` each hold `private readonly openTask: OpenTask` and re-expose its methods through delegation wrappers that return their own `this` — see `page-objects.md` for the pattern.
+**Not part of the inheritance chain** — a standalone component (`support/page-objects/common/open_task.ts`), constructed with only `(page: Page)`, not extending anything. Adds open task list, expand button, and API-based task utilities (via `getTodos`/`deleteTodo` imported from `support/helper/todo_api.ts`). Used via **composition**: `DashboardPage` and `OpenTasksPage` each hold `private readonly openTask: OpenTask` and re-expose its methods through delegation wrappers that return their own `this` — see `page-objects.md` for the pattern.
 
 **Public locators:**
 
@@ -175,7 +144,7 @@ The sidebar logo ("Chronos") used to be rendered as an `<h1>`, duplicating a pag
 
 ## Pagination
 
-**Not part of either inheritance chain** — a standalone component (`support/page-objects/common/pagination.ts`), constructed with only `(page: Page)`, no `path`. It carries no `ApiHelper`/`BasePage` behaviour (no `goto`, no API calls) because it never navigates anywhere on its own — it only operates on the `#pagination` control already present within whichever page embeds it. Use it via **composition**: instantiate it as a private property on a page object (see `page-objects.md`), not by extending it.
+**Not part of either inheritance chain** — a standalone component (`support/page-objects/common/pagination.ts`), constructed with only `(page: Page)`, no `path`. It carries no `BasePage` behaviour (no `goto`, no API calls) because it never navigates anywhere on its own — it only operates on the `#pagination` control already present within whichever page embeds it. Use it via **composition**: instantiate it as a private property on a page object (see `page-objects.md`), not by extending it.
 
 Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that render `#pagination` (`open-tasks.html` and `finished-tasks.html`).
 
@@ -203,7 +172,42 @@ Composed into `OpenTasksPage` and `ClosedTasksPage` — the only two pages that 
 | -------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
 | `inject` | `(value: 'light'\|'dark') → Promise<void>` | Sets `localStorage.theme` via `page.addInitScript`, before the page's own scripts run |
 
-The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigger + panel + light/dark/system buttons — currently only referenced as a mask target in `AppBar.checkTopHeaderSnapshot`). `Theme` is deliberately minimal for now — no locators or click methods for that widget — until a test actually needs to interact with it; add them here, not as a separate class, when that happens.
+The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigger + panel + light/dark/system buttons — currently only referenced as a mask target in `Header.checkTopHeaderSnapshot`). `Theme` is deliberately minimal for now — no locators or click methods for that widget — until a test actually needs to interact with it; add them here, not as a separate class, when that happens.
+
+---
+
+## todo_api (API helper)
+
+**Not a class, not in any inheritance chain or composition** — plain exported functions in `support/helper/todo_api.ts`. No Playwright dependency. Imported directly by whichever page object needs them: `DashboardPage`, `ClosedTasksPage`, and the composed `OpenTask`. `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never import it. See `api-helper.md` for the full writeup.
+
+| Function     | Signature                                                                               | Description          |
+| ------------ | --------------------------------------------------------------------------------------- | -------------------- |
+| `getTodos`   | `(order?: 'asc'\|'desc') → Promise<Response>`                                           | Fetches all todos    |
+| `createTodo` | `(body: { title: string; due_date?: string; completed?: boolean }) → Promise<Response>` | Creates a todo       |
+| `deleteTodo` | `(id: number) → Promise<Response>`                                                      | Deletes a todo by id |
+
+All three return the native `fetch` `Response`; auth header and `Content-Type` are built from env vars inside the module on every call.
+
+---
+
+## Footer
+
+**Not part of either inheritance chain** — a standalone component (`support/page-objects/common/footer.ts`), constructed with only `(page: Page)`, no `path`, no `extends`. The app renders a `<footer>` only on `login.html`/`logout.html`, nowhere else — but today only `LoginPage` composes it, since only `login_page.spec.ts` tests it; compose it into `LogoutPage` the same way if a test ever needs it there.
+
+**Public locators:**
+
+| Locator         | Type      | Description                          |
+| --------------- | --------- | ------------------------------------ |
+| `footerHeading` | `Locator` | "Connect with me" text in footer     |
+| `contactIcons`  | `Locator` | All `<a aria-label>` links in footer |
+
+**Methods:**
+
+| Method                 | Signature                         | Description                                                    |
+| ---------------------- | --------------------------------- | -------------------------------------------------------------- |
+| `contactIconByLabel`   | `(label: string) → Locator`       | Returns the contact icon link matching a specific `aria-label` |
+| `checkHeadingVisible`  | `() → Promise<this>`              | Asserts footer heading is visible                              |
+| `checkContactIconLink` | `(label: string) → Promise<this>` | Asserts the contact icon with given `aria-label` is visible    |
 
 ---
 
@@ -211,7 +215,7 @@ The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigge
 
 **Fixture:** `dashboardPage` (authenticated), `unAuthDashboardPage` (no auth)
 **Path:** `/dashboard.html`
-**Extends:** `SiteBarMenu` — has all methods from `ApiHelper` through `SiteBarMenu`. **Composes:** `OpenTask` (see that section above) — `DashboardPage` re-exposes all of its methods and its two public locators directly, so calling them looks identical to inheritance.
+**Extends:** `SiteBarMenu` — has all methods from `BasePage` through `SiteBarMenu`. **Composes:** `OpenTask` (see that section above) — `DashboardPage` re-exposes all of its methods and its two public locators directly, so calling them looks identical to inheritance.
 
 **Public locators:**
 
@@ -225,44 +229,45 @@ The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigge
 
 **Own methods:**
 
-| Method                                       | Signature                                                               | Description                                                                                        |
-| -------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `checkNewTaskButtonIsVisible`                | `() → Promise<this>`                                                    | Asserts new task button is visible                                                                 |
-| `simulateBackendUnreachable`                 | `() → Promise<this>`                                                    | Aborts requests to `/todos` so the page behaves as if the backend were down                        |
-| `checkBackendUnreachableScreen`              | `() → Promise<this>`                                                    | Soft-asserts the "518 Can't Reach the Server" screen (`#be-down`) and its retry button are visible |
-| `toggleTask`                                 | `(taskName: string) → Promise<this>`                                    | Clicks the task checkbox and waits for `/todos` API response                                       |
-| `checkTaskInFinishSection`                   | `(taskName: string) → Promise<this>`                                    | Asserts task heading is visible in done list                                                       |
-| `checkTaskMarkedComplete`                    | `(taskName: string) → Promise<this>`                                    | Soft-asserts the task's checkbox is checked and its title is struck through                        |
-| `checkTaskMarkedIncomplete`                  | `(taskName: string) → Promise<this>`                                    | Soft-asserts the task's checkbox is unchecked and its title is not struck through                  |
-| `checkAllTasksInFinishSectionMarkedComplete` | `() → Promise<this>`                                                    | Soft-asserts every visible task in the done list has a checked checkbox and struck-through title   |
-| `clickButtonNewTask`                         | `() → Promise<NewTaskPage>`                                             | Clicks new task button — returns `NewTaskPage` (chain ends)                                        |
-| `checkNewTaskNavigationRequest`              | `() → Promise<this>`                                                    | Asserts clicking new task button triggers GET request to `edit-task`                               |
-| `checkPulseTextsVisible`                     | `() → Promise<this>`                                                    | Soft-asserts "Today's Pulse" heading and subtitle are visible                                      |
-| `checkPulseStats`                            | `() → Promise<this>`                                                    | Re-visits the page, fetches `/todos`, and soft-asserts the completion % and count text             |
-| `checkUpcomingHeadingVisible`                | `() → Promise<this>`                                                    | Asserts "Upcoming" heading is visible                                                              |
-| `countUpcomingTasks`                         | `() → Promise<number>`                                                  | Fetches `/todos` via API and returns count of non-completed tasks due within 7 days                |
-| `checkUpcomingEmpty`                         | `() → Promise<this>`                                                    | Soft-asserts the "Nothing due in the next 7 days." message is visible with correct text            |
-| `checkUpcomingEmptyMessageNotShown`          | `() → Promise<this>`                                                    | Asserts the empty message is not visible                                                           |
-| `createTaskWithDueDate`                      | `(title: string, dueDate: string, completed?: boolean) → Promise<this>` | Creates a task via API with the given due date, then re-visits the page to reflect it              |
-| `checkTaskDueToday`                          | `(taskName: string) → Promise<this>`                                    | Soft-asserts a task row is visible in Upcoming labeled "Today"                                     |
-| `checkTaskDueTomorrow`                       | `(taskName: string) → Promise<this>`                                    | Soft-asserts a task row is visible in Upcoming labeled "Tomorrow"                                  |
-| `checkTaskNotInUpcoming`                     | `(taskName: string) → Promise<this>`                                    | Asserts a task row is not present in Upcoming                                                      |
-| `checkUpcomingTaskNavigation`                | `(taskName: string) → Promise<this>`                                    | Clicks a task row in Upcoming and waits for navigation to `task-detail.html`                       |
-| `checkCalendarMonthLabel`                    | `() → Promise<this>`                                                    | Asserts the calendar month label matches the current month and year                                |
-| `checkCalendarDaysForCurrentMonth`           | `() → Promise<this>`                                                    | Soft-asserts the calendar shows the correct number of days for the current month, starting at 1    |
-| `checkCalendarTodayHighlighted`              | `() → Promise<this>`                                                    | Asserts exactly one calendar day cell is highlighted and it matches today's date                   |
-| `enterCalculatorNumber`                      | `(value: string) → Promise<this>`                                       | Clicks the calculator's digit buttons to type the given number                                     |
-| `selectCalculatorAdd`                        | `() → Promise<this>`                                                    | Clicks the "+" operator button                                                                     |
-| `selectCalculatorSubtract`                   | `() → Promise<this>`                                                    | Clicks the "−" operator button                                                                     |
-| `selectCalculatorMultiply`                   | `() → Promise<this>`                                                    | Clicks the "×" operator button                                                                     |
-| `selectCalculatorDivide`                     | `() → Promise<this>`                                                    | Clicks the "÷" operator button                                                                     |
-| `clickCalculate`                             | `() → Promise<this>`                                                    | Clicks the calculator's "=" button                                                                 |
-| `clickCalculatorClear`                       | `() → Promise<this>`                                                    | Clicks the calculator's "C" button                                                                 |
-| `clickCalculatorBackspace`                   | `() → Promise<this>`                                                    | Clicks the calculator's backspace button                                                           |
-| `checkCalculatorDisplay`                     | `(expected: string) → Promise<this>`                                    | Asserts the calculator display shows the given text                                                |
-| `checkCalculatorHistory`                     | `(expected: string) → Promise<this>`                                    | Asserts the calculator history line shows the given text                                           |
-| `checkCalculatorErrorMessage`                | `(expected: string) → Promise<this>`                                    | Soft-asserts the calculator error banner is visible with the given message                         |
-| `checkCalculatorErrorHidden`                 | `() → Promise<this>`                                                    | Asserts the calculator error banner is not visible                                                 |
+| Method                                       | Signature                                                               | Description                                                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `checkUrl`                                   | `(url: string) → Promise<this>`                                         | Asserts current URL equals `url`. Own method, not inherited — see `page-objects.md`'s third worked example |
+| `checkNewTaskButtonIsVisible`                | `() → Promise<this>`                                                    | Asserts new task button is visible                                                                         |
+| `simulateBackendUnreachable`                 | `() → Promise<this>`                                                    | Aborts requests to `/todos` so the page behaves as if the backend were down                                |
+| `checkBackendUnreachableScreen`              | `() → Promise<this>`                                                    | Soft-asserts the "518 Can't Reach the Server" screen (`#be-down`) and its retry button are visible         |
+| `toggleTask`                                 | `(taskName: string) → Promise<this>`                                    | Clicks the task checkbox and waits for `/todos` API response                                               |
+| `checkTaskInFinishSection`                   | `(taskName: string) → Promise<this>`                                    | Asserts task heading is visible in done list                                                               |
+| `checkTaskMarkedComplete`                    | `(taskName: string) → Promise<this>`                                    | Soft-asserts the task's checkbox is checked and its title is struck through                                |
+| `checkTaskMarkedIncomplete`                  | `(taskName: string) → Promise<this>`                                    | Soft-asserts the task's checkbox is unchecked and its title is not struck through                          |
+| `checkAllTasksInFinishSectionMarkedComplete` | `() → Promise<this>`                                                    | Soft-asserts every visible task in the done list has a checked checkbox and struck-through title           |
+| `clickButtonNewTask`                         | `() → Promise<NewTaskPage>`                                             | Clicks new task button — returns `NewTaskPage` (chain ends)                                                |
+| `checkNewTaskNavigationRequest`              | `() → Promise<this>`                                                    | Asserts clicking new task button triggers GET request to `edit-task`                                       |
+| `checkPulseTextsVisible`                     | `() → Promise<this>`                                                    | Soft-asserts "Today's Pulse" heading and subtitle are visible                                              |
+| `checkPulseStats`                            | `() → Promise<this>`                                                    | Re-visits the page, fetches `/todos`, and soft-asserts the completion % and count text                     |
+| `checkUpcomingHeadingVisible`                | `() → Promise<this>`                                                    | Asserts "Upcoming" heading is visible                                                                      |
+| `countUpcomingTasks`                         | `() → Promise<number>`                                                  | Fetches `/todos` via API and returns count of non-completed tasks due within 7 days                        |
+| `checkUpcomingEmpty`                         | `() → Promise<this>`                                                    | Soft-asserts the "Nothing due in the next 7 days." message is visible with correct text                    |
+| `checkUpcomingEmptyMessageNotShown`          | `() → Promise<this>`                                                    | Asserts the empty message is not visible                                                                   |
+| `createTaskWithDueDate`                      | `(title: string, dueDate: string, completed?: boolean) → Promise<this>` | Creates a task via API with the given due date, then re-visits the page to reflect it                      |
+| `checkTaskDueToday`                          | `(taskName: string) → Promise<this>`                                    | Soft-asserts a task row is visible in Upcoming labeled "Today"                                             |
+| `checkTaskDueTomorrow`                       | `(taskName: string) → Promise<this>`                                    | Soft-asserts a task row is visible in Upcoming labeled "Tomorrow"                                          |
+| `checkTaskNotInUpcoming`                     | `(taskName: string) → Promise<this>`                                    | Asserts a task row is not present in Upcoming                                                              |
+| `checkUpcomingTaskNavigation`                | `(taskName: string) → Promise<this>`                                    | Clicks a task row in Upcoming and waits for navigation to `task-detail.html`                               |
+| `checkCalendarMonthLabel`                    | `() → Promise<this>`                                                    | Asserts the calendar month label matches the current month and year                                        |
+| `checkCalendarDaysForCurrentMonth`           | `() → Promise<this>`                                                    | Soft-asserts the calendar shows the correct number of days for the current month, starting at 1            |
+| `checkCalendarTodayHighlighted`              | `() → Promise<this>`                                                    | Asserts exactly one calendar day cell is highlighted and it matches today's date                           |
+| `enterCalculatorNumber`                      | `(value: string) → Promise<this>`                                       | Clicks the calculator's digit buttons to type the given number                                             |
+| `selectCalculatorAdd`                        | `() → Promise<this>`                                                    | Clicks the "+" operator button                                                                             |
+| `selectCalculatorSubtract`                   | `() → Promise<this>`                                                    | Clicks the "−" operator button                                                                             |
+| `selectCalculatorMultiply`                   | `() → Promise<this>`                                                    | Clicks the "×" operator button                                                                             |
+| `selectCalculatorDivide`                     | `() → Promise<this>`                                                    | Clicks the "÷" operator button                                                                             |
+| `clickCalculate`                             | `() → Promise<this>`                                                    | Clicks the calculator's "=" button                                                                         |
+| `clickCalculatorClear`                       | `() → Promise<this>`                                                    | Clicks the calculator's "C" button                                                                         |
+| `clickCalculatorBackspace`                   | `() → Promise<this>`                                                    | Clicks the calculator's backspace button                                                                   |
+| `checkCalculatorDisplay`                     | `(expected: string) → Promise<this>`                                    | Asserts the calculator display shows the given text                                                        |
+| `checkCalculatorHistory`                     | `(expected: string) → Promise<this>`                                    | Asserts the calculator history line shows the given text                                                   |
+| `checkCalculatorErrorMessage`                | `(expected: string) → Promise<this>`                                    | Soft-asserts the calculator error banner is visible with the given message                                 |
+| `checkCalculatorErrorHidden`                 | `() → Promise<this>`                                                    | Asserts the calculator error banner is not visible                                                         |
 
 ---
 
@@ -281,12 +286,13 @@ The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigge
 
 **Methods:**
 
-| Method                        | Signature                     | Description                                                                                  |
-| ----------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `fillTaskTitle`               | `() → Promise<this>`          | Fills the task title input with `this.taskName`                                              |
-| `checkCreateTaskButtonBehave` | `() → Promise<this>`          | Soft-asserts button disabled before fill, enabled after fill                                 |
-| `clickCreateTaskButton`       | `() → Promise<DashboardPage>` | Clicks create button, waits for redirect to dashboard — returns `DashboardPage` (chain ends) |
-| `checkCreateTaskPostRequest`  | `() → Promise<this>`          | Asserts clicking create button triggers POST request to `/api/tasks`                         |
+| Method                        | Signature                       | Description                                                                                                |
+| ----------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `checkUrl`                    | `(url: string) → Promise<this>` | Asserts current URL equals `url`. Own method, not inherited — see `page-objects.md`'s third worked example |
+| `fillTaskTitle`               | `() → Promise<this>`            | Fills the task title input with `this.taskName`                                                            |
+| `checkCreateTaskButtonBehave` | `() → Promise<this>`            | Soft-asserts button disabled before fill, enabled after fill                                               |
+| `clickCreateTaskButton`       | `() → Promise<DashboardPage>`   | Clicks create button, waits for redirect to dashboard — returns `DashboardPage` (chain ends)               |
+| `checkCreateTaskPostRequest`  | `() → Promise<this>`            | Asserts clicking create button triggers POST request to `/api/tasks`                                       |
 
 ---
 
@@ -338,12 +344,14 @@ The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigge
 
 **Fixture:** `loginPage` (no auth injection — tests the login form itself)
 **Path:** `/login.html`
-**Extends:** `ToTopButton` — has BasePage, Header, Footer, ToTopButton methods. No AppBar/SiteBarMenu.
+**Extends:** `ToTopButton` — has BasePage, Headline, ToTopButton methods. No Header/SiteBarMenu. **Composes:** `Footer` (see that section above) — re-exposes its two public locators and both its methods directly.
 
 **Methods:**
 
 | Method                          | Signature                                                       | Description                                                                                                      |
 | ------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `checkUrl`                      | `(url: string) → Promise<this>`                                 | Asserts current URL equals `url`. Own method, not inherited — see `page-objects.md`'s third worked example       |
+| `checkFullPageSnapshot`         | `(name: string) → Promise<this>`                                | Full-page `toHaveScreenshot`. Own method, not inherited                                                          |
 | `fillUserName`                  | `(userName: string) → Promise<this>`                            | Fills username input                                                                                             |
 | `fillPassword`                  | `(password: string) → Promise<this>`                            | Fills password input                                                                                             |
 | `checkSignInButtonVisible`      | `() → Promise<this>`                                            | Asserts sign-in button is visible                                                                                |
@@ -368,14 +376,16 @@ The app also has a real interactive theme-toggle widget (`#theme-toggle`, trigge
 
 **Fixture:** `logoutPage` (no auth injection)
 **Path:** `/logout.html`
-**Extends:** `ToTopButton` — has BasePage, Header, Footer, ToTopButton methods. No AppBar/SiteBarMenu.
+**Extends:** `ToTopButton` — has BasePage, Headline, ToTopButton methods. No Header/SiteBarMenu. Does **not** compose `Footer` — `logout.html` renders one, but no test exercises it yet (see `Footer` section above).
 
-| Method                      | Signature                 | Description                                                             |
-| --------------------------- | ------------------------- | ----------------------------------------------------------------------- |
-| `checkReturnToLoginVisible` | `() → Promise<this>`      | Asserts "Return to Login" link is visible                               |
-| `simulateLoggedInSession`   | `() → Promise<this>`      | Seeds `sessionStorage.auth` before a reload, to verify logout clears it |
-| `checkSessionCleared`       | `() → Promise<this>`      | Asserts `sessionStorage.auth` is `null` after visiting the logout page  |
-| `clickReturnToLogin`        | `() → Promise<LoginPage>` | Clicks the link — returns `LoginPage` (chain ends)                      |
+| Method                      | Signature                        | Description                                                             |
+| --------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| `checkUrl`                  | `(url: string) → Promise<this>`  | Asserts current URL equals `url`. Own method, not inherited             |
+| `checkFullPageSnapshot`     | `(name: string) → Promise<this>` | Full-page `toHaveScreenshot`. Own method, not inherited                 |
+| `checkReturnToLoginVisible` | `() → Promise<this>`             | Asserts "Return to Login" link is visible                               |
+| `simulateLoggedInSession`   | `() → Promise<this>`             | Seeds `sessionStorage.auth` before a reload, to verify logout clears it |
+| `checkSessionCleared`       | `() → Promise<this>`             | Asserts `sessionStorage.auth` is `null` after visiting the logout page  |
+| `clickReturnToLogin`        | `() → Promise<LoginPage>`        | Clicks the link — returns `LoginPage` (chain ends)                      |
 
 ---
 
@@ -410,6 +420,7 @@ Every fixture in `auth-fixtures.ts` also injects `theme` into `localStorage` via
 | `general.ts`                | `contactMeInfo`             | Footer contact `{ label, href }` entries: `github`, `email`, `linkedIn`                                                                                                                                                                          |
 | `logout_page_data.ts`       | `logoutPageData`            | h1 text                                                                                                                                                                                                                                          |
 | `closed_tasks_page_data.ts` | `closedTasksPageData`       | h1 text                                                                                                                                                                                                                                          |
+| `new_task_page_data.ts`     | `newTaskPageData`           | h1 text                                                                                                                                                                                                                                          |
 | `list_controls_data.ts`     | `sortOrderCases`            | DDT cases for the "Sort by" dropdown — `{ description, value: 'asc'\|'desc', label }`                                                                                                                                                            |
 | `list_controls_data.ts`     | `pageSizeCases`             | DDT cases for the "Items per page" dropdown — `{ description, value }`                                                                                                                                                                           |
 | `list_controls_data.ts`     | `listControlsData`          | Defaults: `defaultSortOrder` (`sortOrderCases[0].value`), `defaultPageSize` (`pageSizeCases[0].value`)                                                                                                                                           |
@@ -423,10 +434,10 @@ Shared runtime values that are neither a compile-time-only type (`support/types/
 app-content test data (`support/test-data/`) — e.g. a protocol-level enum used by more
 than one file. Unlike `type`/`interface`, these produce real code at runtime.
 
-| File                               | Exports         | Description                                                                                                                                                                          |
-| ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `support/constants/http_method.ts` | `HttpMethod`    | Enum of HTTP verbs (`Get`, `Post`, `Put`, `Delete`), used by `ApiHelper.apiRequest()` and directly in tests                                                                          |
-| `support/constants/endpoints.ts`   | `todosEndpoint` | The `/todos` API path. Shared by `OpenTask` (composed, not in the inheritance chain), `DashboardPage`, and `LoginPage` — these have no common ancestor below the generic `ApiHelper` |
+| File                               | Exports         | Description                                                                                                                                                                   |
+| ---------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `support/constants/http_method.ts` | `HttpMethod`    | Enum of HTTP verbs (`Get`, `Post`, `Put`, `Delete`), used internally by `support/helper/todo_api.ts` and directly in page objects to assert a network request's method        |
+| `support/constants/endpoints.ts`   | `todosEndpoint` | The `/todos` API path. Used by `support/helper/todo_api.ts`, and directly by `DashboardPage`/`LoginPage` for `page.route`/response-URL matching (unrelated to the API helper) |
 
 ## Types
 

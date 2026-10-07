@@ -16,6 +16,16 @@ export class LogoutPage extends ToTopButton {
     this.loginUrlPattern = '**/login.html'
   }
 
+  async checkUrl(url: string): Promise<this> {
+    await expect(this.page).toHaveURL(url)
+    return this
+  }
+
+  async checkFullPageSnapshot(name: string): Promise<this> {
+    await expect(this.page).toHaveScreenshot(name, { fullPage: true })
+    return this
+  }
+
   async checkReturnToLoginVisible(): Promise<this> {
     await expect(this.returnToLoginButton).toBeVisible()
     return this

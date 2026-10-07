@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test'
-import { AppBar } from './app_bar'
+import { Header } from './header'
 
-export class SiteBarMenu extends AppBar {
+export class SiteBarMenu extends Header {
   protected appVersionTitleText: string
   private readonly logoTitleText: string
   private readonly logoSubtitleText: string

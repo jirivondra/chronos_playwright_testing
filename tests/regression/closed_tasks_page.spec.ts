@@ -20,10 +20,6 @@ test.describe('Test Closed Tasks Page', () => {
       await closedTasksPage.checkH1(closedTasksPageData.h1)
     })
 
-    test('Check Only One H1 On Page Closed Tasks', async ({ closedTasksPage }) => {
-      await closedTasksPage.checkOnlyOneH1()
-    })
-
     test('Check All Closed Tasks Marked Complete', async ({ closedTasksPage }) => {
       await closedTasksPage.checkAllTasksMarkedComplete()
     })

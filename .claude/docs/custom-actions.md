@@ -77,8 +77,9 @@ Before picking `expect` vs `expect.soft` inside a small method, check whether it
 called from a larger composed one:
 
 - If the method is only ever called standalone (never composed) — follow the normal
-  decision guide above. See `Header.checkOnlyOneH1`: single assertion, called directly from
-  3 tests, never composed into another page-object method — correctly a blocking `expect`.
+  decision guide above. See `checkUrl` (defined per concrete page, e.g. `DashboardPage`,
+  `LoginPage`): single assertion, called directly from tests, never composed into another
+  page-object method — correctly a blocking `expect`.
 - If the method is composed into a larger flow alongside `expect.soft`-based methods, ask
   whether its failure is a genuine **prerequisite** for the rest of the flow to mean anything
   (`checkVisibilityForOpenMenu` — if the toggle button isn't there, nothing else about the

@@ -1,97 +1,46 @@
-# ApiHelper
+# API Helper
 
-`ApiHelper` is the root class of the page object inheritance chain. It holds HTTP client logic with no Playwright dependency, so it can be used independently of the browser.
+API access is **not** part of the page object inheritance chain. It lives in `support/helper/` as plain exported functions, imported directly wherever a page object needs to set up or tear down server state via API without going through the UI.
 
-## Purpose
+This replaces the old `ApiHelper` base class that every page object used to inherit through `BasePage`, regardless of whether it ever made an API call. Only `DashboardPage`, `ClosedTasksPage`, and the composed `ActionTask` component actually need API access — `LoginPage`, `LogoutPage`, `NewTaskPage`, and `OpenTasksPage` never did, so forcing the HTTP client onto every page object via inheritance was unnecessary coupling (see `page-objects.md`'s "Signal to cut an existing chain").
 
-- Provides a single place for API credentials and base URL configuration.
-- Exposes typed HTTP methods (`get`, `post`, `put`, `delete`) that every page object inherits.
-- Allows tests to set up or tear down server state via API without going through the UI.
+## Current helper: `support/helper/todo_api.ts`
 
-## Available methods
+The app currently exposes a single resource, `/todos` (`support/constants/endpoints.ts`), so the helper is one file with one function per operation actually used by the tests — not a generic `get`/`post`/`put`/`delete` client:
 
-| Method       | Signature                                         | Description                                                       |
-| ------------ | ------------------------------------------------- | ----------------------------------------------------------------- |
-| `get`        | `get(endpoint: string)`                           | Sends a GET request                                               |
-| `post`       | `post(endpoint: string, body?: object)`           | Sends a POST request with an optional JSON body                   |
-| `put`        | `put(endpoint: string, body?: object)`            | Sends a PUT request with an optional JSON body                    |
-| `delete`     | `delete(endpoint: string)`                        | Sends a DELETE request                                            |
-| `apiRequest` | `apiRequest(method: HttpMethod, endpoint, body?)` | Generic dispatcher — use when the method is determined at runtime |
+| Function     | Signature                                                                               | Description          |
+| ------------ | --------------------------------------------------------------------------------------- | -------------------- |
+| `getTodos`   | `(order?: 'asc' \| 'desc') → Promise<Response>`                                         | Fetches all todos    |
+| `createTodo` | `(body: { title: string; due_date?: string; completed?: boolean }) → Promise<Response>` | Creates a todo       |
+| `deleteTodo` | `(id: number) → Promise<Response>`                                                      | Deletes a todo by id |
 
-All methods return `Promise<Response>` (native `fetch` response). `get`, `post`, `put`, and `delete` are `protected` — accessible only within page objects. `apiRequest` is `public`.
+All three return the native `fetch` `Response`. Authentication (`Authorization: Basic ...`) and `Content-Type: application/json` are built from environment variables (`API_BASE_URL`, `API_USERNAME`, `API_PASSWORD`) inside the module on every call — never hardcoded.
 
-`HttpMethod` is an exported enum (`HttpMethod.Get`, `HttpMethod.Post`, `HttpMethod.Put`, `HttpMethod.Delete`) from `support/constants/http_method.ts` — import it instead of passing raw method strings, the same rule as any other magic string.
+There is no generic `apiRequest`/`put` dispatcher. Both existed in the old `ApiHelper` but had zero call sites anywhere in the project — the app doesn't do PUT, and nothing ever needed to pick an HTTP verb at runtime. Don't reintroduce a generic dispatcher pre-emptively; add a new named function (e.g. `updateTodo`) only when a test actually needs it.
 
-Authentication and `Content-Type: application/json` are added automatically from environment variables (`API_BASE_URL`, `API_USERNAME`, `API_PASSWORD`).
+`HttpMethod` (`support/constants/http_method.ts`) is unrelated to this helper — it's used separately in page objects to assert the HTTP method of an intercepted network _request_ (e.g. `expect(request.method()).toBe(HttpMethod.Post)` in `dashboard_page.ts`/`new_task_page.ts`). `todo_api.ts` also uses it internally to avoid raw method strings, but that's incidental.
 
-## How to use inside a page object
+## How a page object uses it
 
-Define endpoints as named class properties, then call the inherited methods — the same rule as for selectors: no inline strings scattered across methods.
+Import the specific functions needed — no base class, no composition object, just function imports:
 
 ```ts
-export class UserPage extends ToTopButton {
-  private readonly usersEndpoint = '/api/users'
+import { getTodos, createTodo } from '../helper/todo_api'
 
-  async createUser(payload: { name: string; email: string }) {
-    const response = await this.post(this.usersEndpoint, payload)
-    return response.json()
-  }
+async countOpenTasks(): Promise<number> {
+  const response = await getTodos()
+  const todos = (await response.json()) as Todo[]
+  return todos.filter((t) => !t.completed).length
+}
 
-  async deleteUser(id: number) {
-    await this.delete(`${this.usersEndpoint}/${id}`)
-  }
-
-  async getUser(id: number) {
-    const response = await this.get(`${this.usersEndpoint}/${id}`)
-    return response.json()
-  }
+async createTaskWithDueDate(title: string, dueDate: string, completed = false): Promise<this> {
+  await createTodo({ title, due_date: dueDate, completed })
+  await this.goto()
+  return this
 }
 ```
 
-The `endpoint` parameter is appended to `API_BASE_URL`, so the property holds only the path:
-
-```ts
-// correct — named property, path only
-private readonly usersEndpoint = '/api/users'
-
-// incorrect — duplicates the base URL
-private readonly usersEndpoint = 'https://api.example.com/api/users'
-```
-
-## When to call API through a page object vs. directly in a test
-
-**Through a page object** — when the API call is part of setting up a reusable precondition that multiple tests need, or when the call logically belongs to the page's domain:
-
-```ts
-// page object method — reusable setup
-private readonly usersEndpoint = '/api/users'
-
-async seedUser(payload: object) {
-  await this.post(this.usersEndpoint, payload)
-}
-```
-
-```ts
-// test — calls the page object, does not know the endpoint
-test('display user profile', async ({ userPage }) => {
-  await userPage.seedUser({ name: 'Alice' })
-  await userPage.goto()
-  await userPage.checkUserName('Alice')
-})
-```
-
-**Directly via `apiRequest`** — when the call is a one-off teardown or verification that does not belong to any page object and would not be reused. Store the endpoint in a named constant, not as an inline string, and pass the method as `HttpMethod`, not a raw string:
-
-```ts
-import { HttpMethod } from '../support/constants/http_method'
-
-test('delete user', async ({ userPage }) => {
-  const userEndpoint = '/api/users/42'
-  await userPage.deleteUser(42)
-  const response = await userPage.apiRequest(HttpMethod.Get, userEndpoint)
-  expect(response.status).toBe(404)
-})
-```
+Page objects that never call these functions (`LoginPage`, `LogoutPage`, `NewTaskPage`, `OpenTasksPage`) simply don't import the module — nothing is forced on them anymore.
 
 ## Typing a JSON response
 
@@ -101,11 +50,8 @@ Don't redeclare an inline anonymous type every time a response is cast — reuse
 // correct — shared type, single source of truth for the entity's shape
 import { Todo } from '../../types/chronos/todo'
 
-async countOpenTasks(): Promise<number> {
-  const response = await this.get(this.todosEndpoint)
-  const todos = (await response.json()) as Todo[]
-  return todos.filter((t) => !t.completed).length
-}
+const response = await getTodos()
+const todos = (await response.json()) as Todo[]
 
 // incorrect — a fresh ad-hoc shape per call site, drifts out of sync with the real API
 const todos = (await response.json()) as { completed: boolean }[]
@@ -113,10 +59,14 @@ const todos = (await response.json()) as { completed: boolean }[]
 
 If a method only needs a subset of fields, narrow the shared type instead of writing a new one — `Pick<Todo, 'id' | 'title'>` rather than `{ id: number; title: string }`.
 
+## Adding a new resource
+
+If the app grows a second resource beyond todos, add a sibling file in `support/helper/` (e.g. `support/helper/user_api.ts`) following the same shape — plain functions, one per operation actually needed, named after the entity singular (matching `support/types/chronos/todo.ts`'s own singular naming), not a generic reusable client class.
+
 ## Rules
 
 - Never hardcode `API_BASE_URL`, credentials, or auth headers — they come from environment variables automatically.
-- `get`, `post`, `put`, `delete` are `protected` — call them only from within page object methods, not from test files.
-- Use `apiRequest` in tests only when no suitable page object method exists and creating one would not be reused.
+- One function per operation actually used by a test, named after what it does (`getTodos`, not `get`) — not a generic verb-based dispatcher.
 - Assert the response status or body in the test, not inside the page object method — page objects prepare data, tests verify outcomes.
 - Type a JSON response with a shared interface from `support/types/chronos/` (adding one if it doesn't exist yet), not an inline anonymous type.
+- Don't add a function, parameter, or generic dispatcher for a case no test currently exercises.

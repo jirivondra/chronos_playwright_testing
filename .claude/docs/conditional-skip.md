@@ -35,12 +35,14 @@ test.describe('Atomic Tests For Dashboard', () => {
 
 ## Where the API call lives
 
-The method that fetches state belongs in the page object, not in the test. It uses the inherited `this.get()` from `ApiHelper`:
+The method that fetches state belongs in the page object, not in the test. It calls `getTodos()` imported from `support/helper/todo_api.ts` (see `api-helper.md`):
 
 ```ts
 // open_task.ts
+import { getTodos } from '../../helper/todo_api'
+
 async countOpenTasks(): Promise<number> {
-  const response = await this.get(this.todosEndpoint)
+  const response = await getTodos()
   const todos = (await response.json()) as { completed: boolean }[]
   return todos.filter((t) => !t.completed).length
 }
