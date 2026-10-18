@@ -94,6 +94,10 @@ test.describe('Test Login page', () => {
 
   test.describe('Login Page - Negative Scenarios', () => {
     test.describe('Stays On Page', () => {
+      // The 'Invalid Credentials' case stays on the page because the server rejects it.
+      // The three empty-field cases never even reach that check — username/password are
+      // `required` on the <input>, so the browser's native constraint validation blocks
+      // the submit event before the app's own JS (and clickSubmit's request) ever runs.
       negativeLoginCases.forEach(({ description, username, password }) => {
         test(`Login With ${description} Stays On Login Page`, async ({ loginPage }) => {
           await loginPage
@@ -184,9 +188,6 @@ test.describe('Test Login page', () => {
           .then((l) => l.checkUsernameFieldErrorHidden())
       })
 
-      // Known app bug: the sign-in button is disabled on submit and only re-enabled
-      // in the network-failure branch, not after a client-side validation failure —
-      // the second clickSubmit() times out waiting for the (still disabled) button.
       test('Login Succeeds After Fixing Username Under Minimum Length', async ({ loginPage }) => {
         await loginPage
           .fillUserName(loginPageData.underMinLengthValue)
@@ -198,11 +199,13 @@ test.describe('Test Login page', () => {
           .then((l) => l.checkUrl(loginPageData.urlDashboard))
       })
 
-      // Known app bug: same missing button re-enable, this time in the invalid-credentials
-      // branch (res not ok) — the retry's clickSubmit() times out on the disabled button.
-      test('Login Succeeds After Retrying With Correct Credentials', async ({ loginPage }) => {
+      test('Login Succeeds After Two Failed Attempts', async ({ loginPage }) => {
         await loginPage
           .fillUserName(loginCredentials.invalidUser.username)
+          .then((l) => l.fillPassword(loginCredentials.invalidUser.password))
+          .then((l) => l.clickSubmit())
+          .then((l) => l.checkLoginErrorMessage(loginPageData.invalidCredentialsMessage))
+          .then((l) => l.fillUserName(loginCredentials.invalidUser.username))
           .then((l) => l.fillPassword(loginCredentials.invalidUser.password))
           .then((l) => l.clickSubmit())
           .then((l) => l.checkLoginErrorMessage(loginPageData.invalidCredentialsMessage))
@@ -215,10 +218,10 @@ test.describe('Test Login page', () => {
   })
 
   themeCases.forEach(({ description, theme }) => {
-    test.describe('Visual Tests For Login Page', () => {
+    test.describe(`Visual Tests For Login Page - ${theme}`, () => {
       test.use({ theme })
 
-      test(`Login Page Matches ${description} Snapshot`, async ({ loginPage }) => {
+      test(`Login Page Matches ${description} Snapshot - ${theme}`, async ({ loginPage }) => {
         await loginPage.checkFullPageSnapshot(`login-page-${theme}.png`)
       })
     })
