@@ -14,6 +14,19 @@ npm install
 npx playwright install
 ```
 
+## Environment Variables
+
+Loaded from a local `.env` file (not committed) via `dotenv` in `playwright.config.ts`:
+
+| Variable       | Description                          |
+| -------------- | ------------------------------------ |
+| `BASE_URL`     | URL of the app frontend              |
+| `API_BASE_URL` | URL of the backend API               |
+| `API_USERNAME` | Username used for login and API auth |
+| `API_PASSWORD` | Password used for login and API auth |
+
+`playwright.config.ts` validates these at startup with [`envalid`](https://github.com/af/envalid) — if any are missing or malformed, the run fails immediately with a clear error instead of further downstream in a confusing test failure.
+
 ## Running Tests
 
 | Command               | Description                                  |

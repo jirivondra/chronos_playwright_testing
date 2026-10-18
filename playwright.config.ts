@@ -1,8 +1,16 @@
 import { defineConfig, devices } from '@playwright/test'
 import dotenv from 'dotenv'
+import { cleanEnv, str, url } from 'envalid'
 import path from 'path'
 
 dotenv.config({ path: path.resolve(__dirname, '.env') })
+
+cleanEnv(process.env, {
+  BASE_URL: url(),
+  API_BASE_URL: url(),
+  API_USERNAME: str(),
+  API_PASSWORD: str(),
+})
 
 export default defineConfig({
   testDir: './tests',
