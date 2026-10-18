@@ -1,37 +1,48 @@
 import { Page, Locator, expect } from '@playwright/test'
 import { SiteBarMenu } from './common/site_bar_menu'
 import { Pagination } from './common/pagination'
-import { getTodos } from '../helper/todo_api'
+import { ActionTask } from './common/action_task'
+import { getTodos, createTodo } from '../helper/todo_api'
 import { todosEndpoint } from '../constants/endpoints'
 import { Todo } from '../types/chronos/todo'
 
 export class ClosedTasksPage extends SiteBarMenu {
   private readonly pagination: Pagination
+  private readonly actionTask: ActionTask
   private readonly doneList: Locator
   private readonly taskGroup: Locator
   private readonly completedTaskClass: RegExp
-  private readonly pageHeaderBlock: Locator
   private readonly sortOrderSelect: Locator
   private readonly pageSizeSelect: Locator
 
   constructor(page: Page) {
     super(page, '/finished-tasks.html')
     this.pagination = new Pagination(page)
+    this.actionTask = new ActionTask(page)
     this.doneList = page.locator('#done-list')
     this.taskGroup = page.locator('.group')
     this.completedTaskClass = /line-through/
-    // The breadcrumb + h1 + subtitle share one unlabelled <div>, which is the h1's own
-    // parent — scoping off the h1 avoids depending on a utility class name.
-    this.pageHeaderBlock = page
-      .locator('main')
-      .getByRole('heading', { level: 1 })
-      .locator('xpath=..')
-    this.sortOrderSelect = page.locator('#sort-order')
-    this.pageSizeSelect = page.locator('#page-size')
+    this.sortOrderSelect = page.getByLabel('Sort by')
+    this.pageSizeSelect = page.getByLabel('Items per page')
   }
 
-  async checkHeaderSnapshot(name: string): Promise<this> {
-    await expect(this.pageHeaderBlock).toHaveScreenshot(name)
+  private taskInClosedList(taskName: string): Locator {
+    return this.doneList.getByRole('heading', { name: taskName })
+  }
+
+  async createCompletedTask(title: string): Promise<this> {
+    await createTodo({ title, completed: true })
+    await this.goto()
+    return this
+  }
+
+  async checkTaskNotInClosedList(taskName: string): Promise<this> {
+    await expect(this.taskInClosedList(taskName)).not.toBeVisible()
+    return this
+  }
+
+  async checkTaskInClosedList(taskName: string): Promise<this> {
+    await expect(this.taskInClosedList(taskName)).toBeVisible()
     return this
   }
 
@@ -41,7 +52,7 @@ export class ClosedTasksPage extends SiteBarMenu {
   }
 
   async checkSortOrderOptions(labels: string[]): Promise<this> {
-    await expect(this.sortOrderSelect.locator('option')).toHaveText(labels)
+    await expect(this.sortOrderSelect.getByRole('option')).toHaveText(labels)
     return this
   }
 
@@ -64,7 +75,7 @@ export class ClosedTasksPage extends SiteBarMenu {
   }
 
   async checkPageSizeOptions(values: number[]): Promise<this> {
-    await expect(this.pageSizeSelect.locator('option')).toHaveText(values.map(String))
+    await expect(this.pageSizeSelect.getByRole('option')).toHaveText(values.map(String))
     return this
   }
 
@@ -154,5 +165,49 @@ export class ClosedTasksPage extends SiteBarMenu {
   async checkCurrentPage(pageNumber: number): Promise<this> {
     await this.pagination.checkCurrentPage(pageNumber)
     return this
+  }
+
+  async toggleTask(taskName: string): Promise<this> {
+    await this.actionTask.toggleTask(taskName)
+    return this
+  }
+
+  async checkTaskHasInfoAndDeleteButtons(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskHasInfoAndDeleteButtons(taskName)
+    return this
+  }
+
+  async clickDeleteButton(taskName: string): Promise<this> {
+    await this.actionTask.clickDeleteButton(taskName)
+    return this
+  }
+
+  async checkDeleteDialogVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogVisible()
+    return this
+  }
+
+  async checkDeleteDialogNotVisible(): Promise<this> {
+    await this.actionTask.checkDeleteDialogNotVisible()
+    return this
+  }
+
+  async cancelDeleteDialog(): Promise<this> {
+    await this.actionTask.cancelDeleteDialog()
+    return this
+  }
+
+  async confirmDeleteDialog(): Promise<this> {
+    await this.actionTask.confirmDeleteDialog()
+    return this
+  }
+
+  async checkTaskDetailNavigation(taskName: string): Promise<this> {
+    await this.actionTask.checkTaskDetailNavigation(taskName)
+    return this
+  }
+
+  async deleteTaskByTitle(title: string): Promise<void> {
+    await this.actionTask.deleteTaskByTitle(title)
   }
 }

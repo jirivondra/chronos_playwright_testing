@@ -68,10 +68,10 @@ test.describe('Test Logout page', () => {
   })
 
   themeCases.forEach(({ description, theme }) => {
-    test.describe('Visual Tests For Logout Page', () => {
+    test.describe(`Visual Tests For Logout Page - ${theme}`, () => {
       test.use({ theme })
 
-      test(`Logout Page Matches ${description} Snapshot`, async ({ logoutPage }) => {
+      test(`Logout Page Matches ${description} Snapshot - ${theme}`, async ({ logoutPage }) => {
         await logoutPage.checkFullPageSnapshot(`logout-page-${theme}.png`)
       })
     })

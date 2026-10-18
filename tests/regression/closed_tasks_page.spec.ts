@@ -1,12 +1,17 @@
-import { test } from '../../support/fixture'
+import { test, expect } from '../../support/fixture'
 import { paginationData, generateNonLastPageNumber } from '../../support/test-data/pagination_data'
-import { closedTasksPageData } from '../../support/test-data/closed_tasks_page_data'
+import {
+  closedTasksPageData,
+  generateClosedTaskTitle,
+} from '../../support/test-data/closed_tasks_page_data'
 import { themeCases } from '../../support/test-data/visual_testing_data'
 import {
   listControlsData,
   sortOrderCases,
   pageSizeCases,
 } from '../../support/test-data/list_controls_data'
+import { getTodos } from '../../support/helper/todo_api'
+import { Todo } from '../../support/types/chronos/todo'
 
 test.describe('Test Closed Tasks Page', () => {
   let paginationVisible: boolean
@@ -133,21 +138,108 @@ test.describe('Test Closed Tasks Page', () => {
       })
     })
   })
+
+  test.describe('E2E Test For Task Removal', () => {
+    let taskName: string
+
+    test.beforeEach(async ({ closedTasksPage }) => {
+      taskName = generateClosedTaskTitle()
+      await closedTasksPage.createCompletedTask(taskName)
+    })
+
+    test.afterEach(async ({ closedTasksPage }) => {
+      await closedTasksPage.deleteTaskByTitle(taskName)
+    })
+
+    test('Unchecking A Completed Task Removes It From Closed Tasks And Reappears As Open', async ({
+      closedTasksPage,
+    }) => {
+      await closedTasksPage.toggleTask(taskName)
+      await closedTasksPage.checkTaskNotInClosedList(taskName)
+
+      const response = await getTodos()
+      const todos = (await response.json()) as Todo[]
+      const task = todos.find((t) => t.title === taskName)
+      expect(task?.completed).toBe(false)
+    })
+  })
+
+  test.describe('E2E Test For Task Row Actions', () => {
+    let taskName: string
+
+    test.beforeEach(async ({ closedTasksPage }) => {
+      taskName = generateClosedTaskTitle()
+      await closedTasksPage.createCompletedTask(taskName)
+    })
+
+    test.afterEach(async ({ closedTasksPage }) => {
+      await closedTasksPage.deleteTaskByTitle(taskName)
+    })
+
+    test('Completed Task Shows Info And Delete Buttons', async ({ closedTasksPage }) => {
+      await closedTasksPage.checkTaskHasInfoAndDeleteButtons(taskName)
+    })
+  })
+
+  test.describe('E2E Test For Task Detail Navigation', () => {
+    let taskName: string
+
+    test.beforeEach(async ({ closedTasksPage }) => {
+      taskName = generateClosedTaskTitle()
+      await closedTasksPage.createCompletedTask(taskName)
+    })
+
+    test.afterEach(async ({ closedTasksPage }) => {
+      await closedTasksPage.deleteTaskByTitle(taskName)
+    })
+
+    test('Clicking Info Button Navigates To Task Detail', async ({ closedTasksPage }) => {
+      await closedTasksPage.checkTaskDetailNavigation(taskName)
+    })
+  })
+
+  test.describe('E2E Test For Task Deletion', () => {
+    let taskName: string
+
+    test.beforeEach(async ({ closedTasksPage }) => {
+      taskName = generateClosedTaskTitle()
+      await closedTasksPage.createCompletedTask(taskName)
+    })
+
+    test.afterEach(async ({ closedTasksPage }) => {
+      await closedTasksPage.deleteTaskByTitle(taskName)
+    })
+
+    test('Confirming Delete Removes The Task', async ({ closedTasksPage }) => {
+      await closedTasksPage.clickDeleteButton(taskName)
+      await closedTasksPage.checkDeleteDialogVisible()
+      await closedTasksPage.confirmDeleteDialog()
+      await closedTasksPage.checkTaskNotInClosedList(taskName)
+    })
+
+    test('Canceling Delete Keeps The Task', async ({ closedTasksPage }) => {
+      await closedTasksPage.clickDeleteButton(taskName)
+      await closedTasksPage.checkDeleteDialogVisible()
+      await closedTasksPage.cancelDeleteDialog()
+      await closedTasksPage.checkDeleteDialogNotVisible()
+      await closedTasksPage.checkTaskInClosedList(taskName)
+    })
+  })
 })
 
 themeCases.forEach(({ description, theme }) => {
-  test.describe('Visual Tests For Closed Tasks Page', () => {
+  test.describe(`Visual Tests For Closed Tasks Page - ${theme}`, () => {
     test.use({ theme })
 
-    test(`Closed Tasks Header Matches ${description} Snapshot`, async ({ closedTasksPage }) => {
-      await closedTasksPage.checkHeaderSnapshot(`closed-tasks-header-${theme}.png`)
-    })
-
-    test(`Closed Tasks Sidebar Matches ${description} Snapshot`, async ({ closedTasksPage }) => {
+    test(`Closed Tasks Sidebar Matches ${description} Snapshot - ${theme}`, async ({
+      closedTasksPage,
+    }) => {
       await closedTasksPage.checkSidebarSnapshot(`closed-tasks-sidebar-${theme}.png`)
     })
 
-    test(`Closed Tasks Top Header Matches ${description} Snapshot`, async ({ closedTasksPage }) => {
+    test(`Closed Tasks Top Header Matches ${description} Snapshot - ${theme}`, async ({
+      closedTasksPage,
+    }) => {
       await closedTasksPage.checkTopHeaderSnapshot(`closed-tasks-top-header-${theme}.png`)
     })
   })

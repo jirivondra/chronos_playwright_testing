@@ -106,6 +106,21 @@ export class ActionTask {
     return this
   }
 
+  async checkTaskHasInfoAndDeleteButtons(taskName: string): Promise<this> {
+    await expect.soft(this.taskInfoButton(taskName)).toBeVisible()
+    await expect.soft(this.taskDeleteButton(taskName)).toBeVisible()
+    return this
+  }
+
+  async toggleTask(taskName: string): Promise<this> {
+    const response = this.page.waitForResponse(
+      (res) => res.url().includes(todosEndpoint) && res.ok()
+    )
+    await this.taskGroup.filter({ hasText: taskName }).getByRole('checkbox').click()
+    await response
+    return this
+  }
+
   async clickDeleteButton(taskName: string): Promise<this> {
     await this.taskDeleteButton(taskName).click()
     return this
